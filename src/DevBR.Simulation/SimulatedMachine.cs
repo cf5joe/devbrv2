@@ -22,6 +22,9 @@ public sealed class MachineDefinition
     /// <summary>Virtual files that are cloud placeholders (reading them would download them).</summary>
     public List<string> Placeholders { get; init; } = [];
 
+    /// <summary>Executable names of processes "running" on the simulated machine.</summary>
+    public List<string> RunningProcesses { get; init; } = [];
+
     /// <summary>Virtual files held open exclusively by another process (reads fail with a sharing violation).</summary>
     public List<string> Locked { get; init; } = [];
 
@@ -65,6 +68,8 @@ public sealed class SimulatedMachine : IMachine
     public IStorePackageSource StorePackages { get; }
 
     public bool IsSimulated => true;
+
+    public IReadOnlySet<string> GetRunningProcessNames() => new HashSet<string>(Definition.RunningProcesses, StringComparer.OrdinalIgnoreCase);
 
     public static bool IsMachineFolder(string root) => File.Exists(Path.Combine(root, "machine.json"));
 

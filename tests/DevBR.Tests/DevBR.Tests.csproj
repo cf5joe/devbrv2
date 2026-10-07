@@ -19,6 +19,7 @@
     <ProjectReference Include="..\..\src\DevBR.Discovery\DevBR.Discovery.csproj" />
     <ProjectReference Include="..\..\src\DevBR.Simulation\DevBR.Simulation.csproj" />
     <ProjectReference Include="..\..\src\DevBR.Backup\DevBR.Backup.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Restore\DevBR.Restore.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

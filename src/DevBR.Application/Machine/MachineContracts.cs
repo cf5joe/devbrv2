@@ -20,6 +20,9 @@ public interface IMachine
 
     /// <summary>True for a fixture-backed machine. Shown prominently in the UI.</summary>
     bool IsSimulated { get; }
+
+    /// <summary>Executable names of running processes (e.g. "Code.exe"), used to warn before files in use are changed.</summary>
+    IReadOnlySet<string> GetRunningProcessNames();
 }
 
 /// <param name="ComputerName">Display only; never used as an identity.</param>

@@ -106,6 +106,7 @@ public partial class App
         builder.Services.AddSingleton(sp => new DiscoveryEngine(DiscoveryEngine.DefaultProviders(), sp.GetRequiredService<ILogger<DiscoveryEngine>>()));
         builder.Services.AddSingleton<MachineContext>();
         builder.Services.AddSingleton<CatalogSession>();
+        builder.Services.AddSingleton<DevBR.Restore.RestorePlanner>();
 
         // Presentation
         builder.Services.AddSingleton<ThemeService>();

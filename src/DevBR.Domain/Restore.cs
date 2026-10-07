@@ -29,6 +29,12 @@ public enum RestoreAction
     InstallDependency,
     RestoreRepository,
     Skip,
+
+    /// <summary>Something the user does (e.g. install the host application); DevBR rechecks it.</summary>
+    ManualStep,
+
+    /// <summary>Post-restore functional check.</summary>
+    Validate,
 }
 
 public enum ConflictDecision

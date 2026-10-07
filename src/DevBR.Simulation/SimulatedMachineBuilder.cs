@@ -103,6 +103,12 @@ public sealed class SimulatedMachineBuilder
         return this;
     }
 
+    public SimulatedMachineBuilder Running(params string[] executables)
+    {
+        _definition.RunningProcesses.AddRange(executables);
+        return this;
+    }
+
     /// <summary>A file another program holds open exclusively (e.g. a running app's database).</summary>
     public SimulatedMachineBuilder LockedFile(string path, string content = "locked")
     {

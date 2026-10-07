@@ -96,7 +96,7 @@ public static class SampleMachines
         b.File($@"{code}\settings.json", "{\n  // Editor\n  \"editor.fontSize\": 14,\n  \"files.autoSave\": \"afterDelay\",\n}\n")
          .File($@"{code}\keybindings.json", """[ { "key": "ctrl+k ctrl+t", "command": "workbench.action.selectTheme" } ]""")
          .File($@"{code}\snippets\python.json", """{ "main": { "prefix": "main", "body": ["if __name__ == '__main__':"] } }""")
-         .File($@"{code}\mcp.json", """{ "servers": { "github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/" } } }""")
+         .File($@"{code}\mcp.json", """{ "servers": { "github": { "type": "http", "url": "https://api.githubcopilot.com/mcp/" }, "internal": { "command": "acme-mcp", "args": ["--stdio"] } } }""")
          .File($@"{code}\prompts\review.prompt.md", "Review the change for correctness.")
          .File($@"{code}\globalStorage\storage.json", """{ "userDataProfiles": [ { "location": "-5a2f1c", "name": "Data Science" } ] }""")
          .File($@"{code}\profiles\-5a2f1c\settings.json", """{ "python.defaultInterpreterPath": "C:\\Users\\alice\\AppData\\Local\\Programs\\Python\\Python312\\python.exe" }""")

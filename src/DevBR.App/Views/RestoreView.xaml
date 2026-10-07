@@ -181,7 +181,166 @@
                 </Border>
             </Grid>
 
-            <controls:InfoBar Margin="0,16,0,0" Severity="Information" Title="Restore planning is not included in this build yet"
+            <!-- Plan the restore: items, destinations, preflight, review, approval -->
+            <TextBlock Text="Plan the restore" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,4" />
+            <TextBlock Style="{StaticResource Text.Muted}" Margin="0,0,0,12">
+                <Run Text="Restoring to: " /><Run Text="{Binding TargetLabel, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=". Preflight only reads this computer; nothing changes until a plan is approved and run." />
+            </TextBlock>
+
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Items to restore" Style="{StaticResource Text.Label}" />
+                    <ItemsControl ItemsSource="{Binding Items}" Margin="0,8,0,0" Focusable="False" AutomationProperties.Name="Items to restore">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:RestoreItemRow}">
+                                <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" Margin="0,0,12,6" AutomationProperties.Name="{Binding Name}">
+                                    <TextBlock TextTrimming="CharacterEllipsis">
+                                        <Run Text="{Binding Name, Mode=OneWay}" /><Run Text="{Binding Owner, Mode=OneWay, StringFormat=' · {0}'}" Foreground="{DynamicResource DevBR.TextMuted}" />
+                                    </TextBlock>
+                                </CheckBox>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                        <Button Style="{StaticResource Button.Primary}" Command="{Binding RunPreflightCommand}" AutomationProperties.Name="Run preflight">
+                            <TextBlock Text="{Binding HasPreflight, Converter={x:Static vm:RestoreLabels.PreflightLabel}}" />
+                        </Button>
+                        <TextBlock Text="{Binding PreflightStatus}" Style="{StaticResource Text.Muted}" VerticalAlignment="Center" Margin="16,0,0,0" />
+                    </StackPanel>
+                    <ProgressBar IsIndeterminate="True" Height="4" Margin="0,12,0,0" Visibility="{Binding IsPreflighting, Converter={StaticResource BoolToVisibility}}"
+                                 AutomationProperties.Name="Preflight in progress" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Visibility="{Binding HasPreflight, Converter={StaticResource BoolToVisibility}}" Margin="0,16,0,0">
+                <TextBlock Text="{Binding PreflightSummary}" Style="{StaticResource Text.Label}" Margin="0,0,0,12" AutomationProperties.LiveSetting="Polite" />
+
+                <!-- Destinations -->
+                <TextBlock Text="Destinations" Style="{StaticResource Text.SectionTitle}" FontSize="15" Margin="0,8,0,8" />
+                <Border Style="{StaticResource Card}" Padding="0">
+                    <ItemsControl ItemsSource="{Binding MappingRows}" Focusable="False" AutomationProperties.Name="Destinations">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:MappingRow}">
+                                <Border BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="0,0,0,1" Padding="16,8">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Change…" VerticalAlignment="Center"
+                                                Command="{Binding DataContext.ChangeMappingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding CanChange, Converter={StaticResource BoolToVisibility}}" AutomationProperties.Name="{Binding Source, StringFormat='Change destination for {0}'}" />
+                                        <StackPanel>
+                                            <TextBlock TextTrimming="CharacterEllipsis">
+                                                <Run Text="{Binding Source, Mode=OneWay}" /><Run Text="  →  " Foreground="{DynamicResource DevBR.TextMuted}" /><Run Text="{Binding Target, Mode=OneWay}" FontWeight="SemiBold" />
+                                            </TextBlock>
+                                            <TextBlock Style="{StaticResource Text.Caption}">
+                                                <Run Text="{Binding Origin, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding StatusLabel, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <!-- Findings -->
+                <TextBlock Text="Preflight findings" Style="{StaticResource Text.SectionTitle}" FontSize="15" Margin="0,24,0,8" />
+                <ItemsControl ItemsSource="{Binding Findings}" Focusable="False" AutomationProperties.Name="Preflight findings">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:FindingView}">
+                            <controls:InfoBar Severity="{Binding Severity}" Title="{Binding Title}" Message="{Binding Message}" Margin="0,0,0,8" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Style="{StaticResource Button.Secondary}" Content="Recheck" Command="{Binding RunPreflightCommand}" HorizontalAlignment="Left" Margin="0,0,0,8"
+                        AutomationProperties.Name="Recheck preflight" />
+
+                <!-- Review -->
+                <TextBlock Text="Review the plan" Style="{StaticResource Text.SectionTitle}" FontSize="15" Margin="0,24,0,8" />
+                <ItemsControl ItemsSource="{Binding Groups}" Focusable="False" AutomationProperties.Name="Planned changes">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:OperationGroup}">
+                            <StackPanel Margin="0,0,0,16">
+                                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Label}" />
+                                <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Caption}" Margin="0,2,0,8" />
+                                <Border Style="{StaticResource Card}" Padding="0">
+                                    <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:OperationRow}">
+                                                <Border BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="0,0,0,1" Padding="16,10">
+                                                    <DockPanel>
+                                                        <ComboBox DockPanel.Dock="Right" Width="230" VerticalAlignment="Top" Margin="12,0,0,0"
+                                                                  ItemsSource="{Binding Choices}" SelectedItem="{Binding Decision}"
+                                                                  Visibility="{Binding HasChoice, Converter={StaticResource BoolToVisibility}}"
+                                                                  AutomationProperties.Name="{Binding Title, StringFormat='Choice for {0}'}">
+                                                            <ComboBox.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding Converter={x:Static vm:DecisionLabels.Label}}" />
+                                                                </DataTemplate>
+                                                            </ComboBox.ItemTemplate>
+                                                        </ComboBox>
+                                                        <StackPanel>
+                                                            <WrapPanel>
+                                                                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Body}" FontWeight="SemiBold" Margin="0,0,8,2" TextTrimming="CharacterEllipsis" />
+                                                                <Border Style="{StaticResource Badge}" Padding="6,0" Margin="0,0,6,2" Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}}">
+                                                                    <StackPanel Orientation="Horizontal">
+                                                                        <TextBlock Text="&#xEA18;" Style="{StaticResource Text.Icon}" FontSize="10" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,4,0" />
+                                                                        <TextBlock Text="Administrator" FontSize="11" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                                <Border Style="{StaticResource Badge}" Padding="6,0" Margin="0,0,6,2" Visibility="{Binding IsIrreversible, Converter={StaticResource BoolToVisibility}}">
+                                                                    <TextBlock Text="Cannot be rolled back" FontSize="11" />
+                                                                </Border>
+                                                                <Border Style="{StaticResource Badge}" Padding="6,0" Margin="0,0,6,2" Visibility="{Binding Enabled, Converter={StaticResource HasNoValue}}">
+                                                                    <TextBlock Text="Held back" FontSize="11" />
+                                                                </Border>
+                                                            </WrapPanel>
+                                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding MergeSummary}" FontFamily="Cascadia Mono, Consolas" FontSize="12" Margin="0,6,0,0"
+                                                                       Foreground="{DynamicResource DevBR.TextMuted}" TextWrapping="Wrap" Visibility="{Binding MergeSummary, Converter={StaticResource HasValue}}" />
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Expander Header="Paths rewritten for this computer" Margin="0,0,0,8" Visibility="{Binding Rewrites.Count, Converter={StaticResource HasValue}}">
+                    <ItemsControl ItemsSource="{Binding Rewrites}" Margin="0,8,0,0" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" /></DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+                <Expander Header="MCP servers in this backup" Margin="0,0,0,8" Visibility="{Binding McpServers.Count, Converter={StaticResource HasValue}}">
+                    <ItemsControl ItemsSource="{Binding McpServers}" Margin="0,8,0,0" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" /></DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+                <Expander Header="Software to reinstall yourself" Margin="0,0,0,8" Visibility="{Binding Reinstall.Count, Converter={StaticResource HasValue}}">
+                    <ItemsControl ItemsSource="{Binding Reinstall}" Margin="0,8,0,0" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" /></DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+
+                <controls:InfoBar Severity="{Binding ApprovalSeverity}" Title="{Binding ApprovalStatus}" Margin="0,8,0,0"
+                                  Visibility="{Binding ApprovalStatus, Converter={StaticResource HasValue}}" />
+                <Button Style="{StaticResource Button.Primary}" Content="Approve this plan" Command="{Binding ApproveCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+            </StackPanel>
+
+            <controls:InfoBar Margin="0,16,0,0" Severity="Information" Title="Restore execution is not included in this build yet"
                               Message="Opening this backup unpacked only its verified indexes into a private temporary folder. No backed-up files were extracted, and nothing was run or changed on this computer." />
         </StackPanel>
     </StackPanel>

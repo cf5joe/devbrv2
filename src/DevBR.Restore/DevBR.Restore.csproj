@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DevBR.Restore</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DevBR.Application\DevBR.Application.csproj" />
+    <ProjectReference Include="..\DevBR.Discovery\DevBR.Discovery.csproj" />
+    <ProjectReference Include="..\DevBR.Backup\DevBR.Backup.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+</Project>

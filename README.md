@@ -4,8 +4,9 @@ Portable Windows 11 x64 application that discovers a developer's environment, cr
 backup, and restores supported configuration and personal development assets on another computer.
 The full product plan is in [devbr-plan.md](devbr-plan.md).
 
-**Status:** Phases 1 (foundation and portable shell), 2 (discovery and migration catalog) and 3 (backup
-creation and archive inspection) are implemented. Restore planning and execution follow in Phases 4–5.
+**Status:** Phases 1 (foundation and portable shell), 2 (discovery and migration catalog), 3 (backup
+creation and archive inspection) and 4 (restore planning and preflight) are implemented. Restore execution
+and recovery follow in Phase 5.
 The archive format is described in [docs/ARCHIVE-FORMAT.md](docs/ARCHIVE-FORMAT.md). Discovery and backup can run
 against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md).
 
@@ -17,6 +18,7 @@ against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md).
 | `src/DevBR.Application` | Contracts: discovery providers, migration adapters, archive service, restore executor, settings |
 | `src/DevBR.Discovery` | Discovery engine, providers (registry, Store, App Paths, Start menu, PATH, package managers, environment, filesystem), 15 tool adapters, known-tool catalog |
 | `src/DevBR.Backup` | Backup planner (exclusions that never drop Git-tracked content, overlaps, findings), staging runner with redaction and secret detection, backup reader |
+| `src/DevBR.Restore` | Read-only preflight and restore planning: path mapping, structured merge previews, MCP and dependency analysis, package recipes, environment/PATH planning, plan approval |
 | `src/DevBR.Simulation` | Fixture-backed simulated machines and the sample workstation / clean target |
 | `src/DevBR.Infrastructure` | App paths, settings, SQLite state, activity and discovery catalog, logging, real Windows machine, worker host, broker launcher |
 | `src/DevBR.Ipc` | Versioned named-pipe protocol: framing, ACLs, OS peer verification, handshake, allow-listed dispatch |

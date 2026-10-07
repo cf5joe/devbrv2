@@ -7,7 +7,9 @@ using DevBR.App.Services;
 using DevBR.Application;
 using DevBR.Application.Archive;
 using DevBR.Application.Settings;
+using DevBR.App.Controls;
 using DevBR.Backup;
+using DevBR.Restore;
 using DevBR.Domain;
 using DevBR.Infrastructure;
 using DevBR.Infrastructure.State;
@@ -53,12 +55,226 @@ public sealed record BackupEntryRow(string Path, string Size);
 /// Restore steps 1–3: choose a backup, unlock it if encrypted, and browse its overview. Only the indexes
 /// are extracted (by the archive worker, into a private folder) and verified; nothing is restored or run.
 /// </summary>
-public sealed partial class RestoreViewModel(IArchiveService archive, IDialogService dialogs, ActivityStore activity, ISettingsStore settings, AppPaths paths) : PageViewModel
+public sealed partial class RestoreViewModel(IArchiveService archive, IDialogService dialogs, ActivityStore activity, ISettingsStore settings, AppPaths paths,
+    RestorePlanner planner, MachineContext machine) : PageViewModel
 {
     private const int EntriesPerPage = 200;
 
     private CancellationTokenSource? _inspection;
     private BackupOverview? _overview;
+    private readonly Dictionary<string, RootMapping> _userMappings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ConflictDecision> _decisions = new(StringComparer.Ordinal);
+    private PlanApproval? _approval;
+    private CancellationTokenSource? _preflightCts;
+
+    // --- Restore planning (steps 4–7: destinations, preflight, review, approval) ---------------
+
+    public ObservableCollection<RestoreItemRow> Items { get; } = [];
+
+    public ObservableCollection<MappingRow> MappingRows { get; } = [];
+
+    public ObservableCollection<FindingView> Findings { get; } = [];
+
+    public ObservableCollection<OperationGroup> Groups { get; } = [];
+
+    public ObservableCollection<string> Rewrites { get; } = [];
+
+    public ObservableCollection<string> Reinstall { get; } = [];
+
+    public ObservableCollection<string> McpServers { get; } = [];
+
+    public string TargetLabel => machine.Label;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPreflight))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand))]
+    public partial RestorePreflight? Preflight { get; set; }
+
+    public bool HasPreflight => Preflight is not null;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RunPreflightCommand), nameof(ApproveCommand))]
+    public partial bool IsPreflighting { get; set; }
+
+    [ObservableProperty]
+    public partial string? PreflightStatus { get; set; }
+
+    [ObservableProperty]
+    public partial string? PreflightSummary { get; set; }
+
+    [ObservableProperty]
+    public partial string? ApprovalStatus { get; set; }
+
+    [ObservableProperty]
+    public partial InfoSeverity ApprovalSeverity { get; set; }
+
+    [RelayCommand(CanExecute = nameof(CanRunPreflight))]
+    private Task RunPreflightAsync() => PreflightAsync();
+
+    private bool CanRunPreflight() => !IsPreflighting && _overview is not null;
+
+    [RelayCommand]
+    private async Task ChangeMappingAsync(MappingRow? row)
+    {
+        if (row is null || dialogs.PickFolder($"Where should {row.Source} go on this computer?", null) is not { } folder)
+        {
+            return;
+        }
+
+        _userMappings[row.Source] = new RootMapping(row.Source, folder, PathMappingOrigin.UserSelected);
+        await PreflightAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanApprove))]
+    private async Task ApproveAsync()
+    {
+        if (Preflight is null)
+        {
+            return;
+        }
+
+        _approval = PlanApproval.Approve(Preflight);
+        var count = Preflight.Effects.Count();
+        ApprovalSeverity = InfoSeverity.Success;
+        ApprovalStatus = $"Plan approved: {count} change{(count == 1 ? string.Empty : "s")} on {machine.Label}. Blocked items are left out until you recheck them. Restore execution is not included in this build yet.";
+        await activity.AddAsync(EventSeverity.Information, "Restore", $"Approved a restore plan for {FileName} with {count} changes.", Preflight.Plan.ApprovalHash);
+    }
+
+    private bool CanApprove() => Preflight is not null && !IsPreflighting && Preflight.Effects.Any();
+
+    private async Task PreflightAsync()
+    {
+        if (_overview is null)
+        {
+            return;
+        }
+
+        _preflightCts?.Cancel();
+        using var cts = new CancellationTokenSource();
+        _preflightCts = cts;
+        IsPreflighting = true;
+        PreflightStatus = "Checking this computer…";
+
+        try
+        {
+            var work = settings.Current.ScratchDirectory ?? paths.DefaultScratchDirectory;
+            Directory.CreateDirectory(work);
+            var request = new RestoreRequest(_overview, _password, machine.Current, Items.Where(i => i.IsSelected).Select(i => i.Key).ToHashSet(StringComparer.Ordinal),
+                [.. _userMappings.Values], new Dictionary<string, ConflictDecision>(_decisions), work);
+            var result = await planner.PreflightAsync(request, new Progress<string>(s => PreflightStatus = s), cts.Token);
+            ShowPreflight(result);
+            PreflightStatus = null;
+        }
+        catch (OperationCanceledException)
+        {
+            PreflightStatus = "Preflight was cancelled.";
+        }
+        catch (Exception ex) when (ex is ArchiveException or BackupFormatException or IOException or UnauthorizedAccessException)
+        {
+            PreflightStatus = $"Preflight could not finish: {ex.Message}";
+        }
+        finally
+        {
+            IsPreflighting = false;
+            if (ReferenceEquals(_preflightCts, cts))
+            {
+                _preflightCts = null;
+            }
+        }
+    }
+
+    private void ShowPreflight(RestorePreflight result)
+    {
+        Preflight = result;
+
+        MappingRows.Clear();
+        foreach (var mapping in result.Mappings.DistinctBy(m => m.SourceAbsolutePath, StringComparer.OrdinalIgnoreCase))
+        {
+            MappingRows.Add(new MappingRow(mapping.SourceAbsolutePath, mapping.TargetRoot.Length == 0 ? "—" : mapping.TargetRoot, mapping.Origin switch
+            {
+                PathMappingOrigin.KnownFolder => "Your profile",
+                PathMappingOrigin.UserSelected => "Chosen by you",
+                _ => "Same location",
+            }, mapping.Status == PathMappingStatus.Valid, mapping.SourceRoot.Root is LogicalRootKind.CustomRoot or LogicalRootKind.RepositoryRoot));
+        }
+
+        Findings.Clear();
+        foreach (var finding in result.Findings.OrderByDescending(f => f.Severity))
+        {
+            Findings.Add(FindingView.From(finding));
+        }
+
+        Groups.Clear();
+        var rows = result.Operations.Select(o => new OperationRow(o, OnDecisionChanged)).ToList();
+        void Group(string title, string description, Func<OperationRow, bool> predicate)
+        {
+            var members = rows.Where(predicate).ToList();
+            if (members.Count > 0)
+            {
+                Groups.Add(new OperationGroup(title, description, members));
+            }
+        }
+
+        Group("Before you restore", "Steps for you to complete; DevBR rechecks them.", r => r.Operation.Operation.Action == RestoreAction.ManualStep);
+        Group("Settings and files", "Created, merged, replaced or kept. Conflicts keep this computer's values unless you choose otherwise.",
+            r => r.Operation.Operation.Action is RestoreAction.CreateFile or RestoreAction.ReplaceFile or RestoreAction.MergeStructuredSettings or RestoreAction.RestoreAlongside
+                 || (r.Operation.Operation.Action == RestoreAction.Skip && r.HasChoice && !r.Id.Contains(":env:", StringComparison.Ordinal)));
+        Group("Repositories", "Restored into new, empty folders with full history.", r => r.Operation.Operation.Action == RestoreAction.RestoreRepository);
+        Group("System changes", "Environment variables and PATH. Changes to machine scope need administrator approval.",
+            r => r.Operation.Operation.Action is RestoreAction.SetEnvironmentVariable or RestoreAction.AppendPathEntry || r.Id.Contains(":env:", StringComparison.Ordinal));
+        Group("Installations and downloads", "Run only after you approve. Installers cannot be rolled back.", r => r.Operation.Operation.Action == RestoreAction.InstallDependency);
+
+        var identical = result.Operations.Count(o => o.Operation.Action == RestoreAction.Skip && o.AllowedDecisions.Count == 0);
+        PreflightSummary = $"{result.Effects.Count()} changes planned · {identical} already identical · {result.Findings.Count(f => f.Severity == FindingSeverity.Blocking)} blocking · {result.Findings.Count(f => f.Severity == FindingSeverity.Warning)} warnings";
+
+        Replace(Rewrites, result.Rewrites.Where(r => r.Outcome != RewriteOutcome.Unchanged).Select(r => r.Outcome == RewriteOutcome.Rewritten
+            ? $"{r.Field}: {r.Before} → {r.After}"
+            : $"{r.Field}: {r.Before} (no destination; left unchanged)"));
+        Replace(Reinstall, result.Reinstall.Select(r => $"{r.Name}{(r.SourceVersion is null ? string.Empty : " " + r.SourceVersion)} — {r.Hint}"));
+        Replace(McpServers, result.McpServers.Select(s => $"{s.Name} ({s.File}): {s.Detail}"));
+
+        // An approval stands only while the plan adds no effect the user has not seen.
+        if (_approval is not null)
+        {
+            if (_approval.Covers(result))
+            {
+                ApprovalSeverity = InfoSeverity.Success;
+                ApprovalStatus = "Your approval still covers this plan: nothing new was added.";
+            }
+            else
+            {
+                _approval = null;
+                ApprovalSeverity = InfoSeverity.Warning;
+                ApprovalStatus = "The plan now includes changes you have not approved. Review them and approve again.";
+            }
+        }
+    }
+
+    private void OnDecisionChanged(OperationRow row)
+    {
+        if (row.Decision is { } decision)
+        {
+            _decisions[row.Id] = decision;
+            _ = PreflightAsync();
+        }
+    }
+
+    private void OnSelectionChanged()
+    {
+        if (Preflight is not null)
+        {
+            PreflightSummary = "The selection changed. Run preflight again to update the plan.";
+        }
+    }
+
+    private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> items)
+    {
+        target.Clear();
+        foreach (var item in items)
+        {
+            target.Add(item);
+        }
+    }
 
     /// <summary>Kept in memory only for the next steps of this restore session.</summary>
     private SecretText? _password;
@@ -270,6 +486,14 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
             Artifacts.Add(new BackupArtifactRow(artifact));
         }
 
+        Items.Clear();
+        foreach (var artifact in overview.Artifacts)
+        {
+            Items.Add(new RestoreItemRow(artifact, OnSelectionChanged));
+        }
+
+        RunPreflightCommand.NotifyCanExecuteChanged();
+
         SelectedArtifact = Artifacts.FirstOrDefault(a => a.Summary.EntryCount > 0);
         Stage = RestoreStage.Overview;
     }
@@ -286,6 +510,20 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
         CaptureWarnings.Clear();
         Artifacts.Clear();
         Entries.Clear();
+        Items.Clear();
+        MappingRows.Clear();
+        Findings.Clear();
+        Groups.Clear();
+        Rewrites.Clear();
+        Reinstall.Clear();
+        McpServers.Clear();
+        _userMappings.Clear();
+        _decisions.Clear();
+        _approval = null;
+        ApprovalStatus = null;
+        Preflight = null;
+        PreflightSummary = null;
+        RunPreflightCommand.NotifyCanExecuteChanged();
     }
 
     private void Fail(string title, string message)

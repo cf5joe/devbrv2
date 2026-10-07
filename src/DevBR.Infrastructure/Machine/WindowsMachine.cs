@@ -59,6 +59,20 @@ public sealed class WindowsMachine : IMachine
     public IStorePackageSource StorePackages { get; } = new WindowsStorePackageSource();
 
     public bool IsSimulated => false;
+
+    public IReadOnlySet<string> GetRunningProcessNames()
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var process in Process.GetProcesses())
+        {
+            using (process)
+            {
+                names.Add(process.ProcessName + ".exe");
+            }
+        }
+
+        return names;
+    }
 }
 
 internal sealed class WindowsRegistry : IRegistry
