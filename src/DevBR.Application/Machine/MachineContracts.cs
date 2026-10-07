@@ -160,6 +160,13 @@ public interface IMachineFileSystem
 
     /// <summary>Product version from the file's version resource. The file is read, never run.</summary>
     string? GetFileVersion(string path);
+
+    /// <summary>
+    /// Opens a file for sequential reading during capture, sharing it with other writers so open
+    /// configuration files can still be read. Throws <see cref="IOException"/> when another process
+    /// holds it exclusively, and <see cref="UnauthorizedAccessException"/> when access is denied.
+    /// </summary>
+    Stream OpenRead(string path);
 }
 
 public sealed record StorePackage(

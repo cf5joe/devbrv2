@@ -6,74 +6,283 @@
              xmlns:vm="clr-namespace:DevBR.App.ViewModels"
              xmlns:controls="clr-namespace:DevBR.App.Controls"
              mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:BackupViewModel}">
+    <UserControl.Resources>
+        <DataTemplate x:Key="Finding" DataType="{x:Type vm:FindingRow}">
+            <controls:InfoBar Severity="{Binding Severity}" Title="{Binding Title}" Message="{Binding Remediation}" Margin="0,0,0,8" />
+        </DataTemplate>
+        <DataTemplate x:Key="CaptureRowTemplate" DataType="{x:Type vm:CaptureRow}">
+            <Border BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="0,0,0,1" Padding="16,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Owner}" Style="{StaticResource Text.Caption}" />
+                        <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource DevBR.Warning}"
+                                   Visibility="{Binding Status, Converter={StaticResource HasValue}}" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="{Binding Detail}" Style="{StaticResource Text.Muted}" FontSize="13" VerticalAlignment="Center" Margin="12,0,0,0" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <StackPanel>
         <TextBlock Text="BACKUP" Style="{StaticResource Text.Overline}" />
         <TextBlock Text="Create a backup" Style="{StaticResource Text.PageTitle}" Margin="0,6,0,0" />
-        <TextBlock Style="{StaticResource Text.Lead}" Margin="0,10,0,0" MaxWidth="720" HorizontalAlignment="Left"
-                   Text="A backup is one .devbr file containing exactly what you select, verified against its own hashes before it is saved." />
+        <TextBlock Style="{StaticResource Text.Lead}" Margin="0,10,0,0" MaxWidth="760" HorizontalAlignment="Left"
+                   Text="One .devbr file containing exactly what you select. Every file is hashed when it is copied and checked again inside the finished backup before it is saved." />
 
-        <controls:InfoBar Margin="0,24,0,0" Severity="Information" Title="Run discovery first"
-                          Message="The backup wizard starts from a discovery inventory of this computer."
-                          Visibility="{Binding HasDiscovery, Converter={StaticResource HasNoValue}}">
-            <controls:InfoBar.ActionContent>
-                <Button Style="{StaticResource Button.Secondary}" Content="Go to Discovery" Command="{Binding GoToDiscoveryCommand}" />
-            </controls:InfoBar.ActionContent>
-        </controls:InfoBar>
-
-        <Border Style="{StaticResource Card}" Margin="0,24,0,0" Visibility="{Binding HasDiscovery, Converter={StaticResource BoolToVisibility}}">
-            <StackPanel>
-                <DockPanel>
-                    <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Review selection" Command="{Binding ReviewSelectionCommand}" VerticalAlignment="Top" />
-                    <StackPanel>
-                        <TextBlock Text="Your selection" Style="{StaticResource Text.SectionTitle}" />
-                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Muted}" Margin="0,2,0,0" />
-                    </StackPanel>
-                </DockPanel>
-                <controls:InfoBar Severity="Warning" Title="This backup must be encrypted" Margin="0,12,0,0"
-                                  Message="The selection includes credentials or recognized secrets."
-                                  Visibility="{Binding RequiresEncryption, Converter={StaticResource BoolToVisibility}}" />
-                <ItemsControl ItemsSource="{Binding Selected}" Margin="0,12,0,0" Focusable="False" AutomationProperties.Name="Selected items">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type vm:SelectedItemSummary}">
-                            <StackPanel Orientation="Horizontal" Margin="0,3">
-                                <TextBlock Text="&#xE73E;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,10,0" />
-                                <TextBlock Text="{Binding Owner}" Style="{StaticResource Text.Muted}" Width="170" />
-                                <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" />
-                                <TextBlock Text="{Binding Badge, StringFormat=' · {0}'}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
-                                           Visibility="{Binding Badge, Converter={StaticResource HasValue}}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
-                    <Button Style="{StaticResource Button.Primary}" Content="Continue to backup" IsEnabled="False" />
-                    <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="16,0,0,0"
-                               Text="Backup capture is not included in this build yet." />
-                </StackPanel>
-            </StackPanel>
-        </Border>
-
-        <TextBlock Text="Steps" Style="{StaticResource Text.SectionTitle}" Margin="0,28,0,12" />
-        <ItemsControl ItemsSource="{Binding Steps}" Focusable="False" AutomationProperties.Name="Backup steps">
+        <!-- Step indicator -->
+        <ItemsControl ItemsSource="{Binding StepIndicators}" Margin="0,24,0,0" Focusable="False" AutomationProperties.Name="Backup steps">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Rows="1" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type vm:WizardStep}">
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Width="32" Height="32" CornerRadius="16" BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="1"
-                                Background="{DynamicResource DevBR.SurfaceElevated}" VerticalAlignment="Top">
-                            <TextBlock Text="{Binding Number}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource DevBR.TextMuted}" />
+                <DataTemplate DataType="{x:Type vm:StepIndicator}">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0" AutomationProperties.Name="{Binding AccessibleName}">
+                        <Border x:Name="Circle" Width="28" Height="28" CornerRadius="14" BorderThickness="1"
+                                BorderBrush="{DynamicResource DevBR.Border}" Background="{DynamicResource DevBR.SurfaceElevated}">
+                            <Grid>
+                                <TextBlock x:Name="Number" Text="{Binding Number}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource DevBR.TextMuted}" />
+                                <TextBlock x:Name="Check" Text="&#xE73E;" Style="{StaticResource Text.Icon}" FontSize="12" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource DevBR.AccentForeground}" Visibility="Collapsed" />
+                            </Grid>
                         </Border>
-                        <StackPanel Grid.Column="1" Margin="16,5,0,16">
-                            <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Label}" />
-                            <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Muted}" Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Grid>
+                        <TextBlock x:Name="Label" Text="{Binding Title}" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource DevBR.TextMuted}" />
+                    </StackPanel>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                            <Setter TargetName="Circle" Property="BorderBrush" Value="{DynamicResource DevBR.Accent}" />
+                            <Setter TargetName="Circle" Property="BorderThickness" Value="2" />
+                            <Setter TargetName="Number" Property="Foreground" Value="{DynamicResource DevBR.Text}" />
+                            <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource DevBR.Text}" />
+                            <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding IsDone}" Value="True">
+                            <Setter TargetName="Circle" Property="Background" Value="{DynamicResource DevBR.Accent}" />
+                            <Setter TargetName="Circle" Property="BorderBrush" Value="{DynamicResource DevBR.Accent}" />
+                            <Setter TargetName="Number" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource DevBR.Text}" />
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+            <StackPanel>
+                <!-- 1. Select -->
+                <StackPanel Visibility="{Binding IsStep1, Converter={StaticResource BoolToVisibility}}">
+                    <controls:InfoBar Severity="Information" Title="Run discovery first" Message="The backup starts from a discovery inventory of this computer."
+                                      Visibility="{Binding HasDiscovery, Converter={StaticResource HasNoValue}}">
+                        <controls:InfoBar.ActionContent>
+                            <Button Style="{StaticResource Button.Secondary}" Content="Go to Discovery" Command="{Binding GoToDiscoveryCommand}" />
+                        </controls:InfoBar.ActionContent>
+                    </controls:InfoBar>
+                    <StackPanel Visibility="{Binding HasDiscovery, Converter={StaticResource BoolToVisibility}}">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Change selection" Command="{Binding ReviewSelectionCommand}" VerticalAlignment="Top" />
+                            <StackPanel>
+                                <TextBlock Text="What will be backed up" Style="{StaticResource Text.SectionTitle}" />
+                                <TextBlock Text="{Binding SelectionSummary}" Style="{StaticResource Text.Muted}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </DockPanel>
+                        <ItemsControl ItemsSource="{Binding Selected}" Margin="0,12,0,0" Focusable="False" AutomationProperties.Name="Selected items">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:SelectedItemSummary}">
+                                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                                        <TextBlock Text="&#xE73E;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,10,0" />
+                                        <TextBlock Text="{Binding Owner}" Style="{StaticResource Text.Muted}" Width="170" />
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" />
+                                        <TextBlock Text="{Binding Badge, StringFormat=' · {0}'}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                                                   Visibility="{Binding Badge, Converter={StaticResource HasValue}}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- 2. Add files and folders -->
+                <StackPanel Visibility="{Binding IsStep2, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Add your own files and folders" Style="{StaticResource Text.SectionTitle}" />
+                    <TextBlock Style="{StaticResource Text.Muted}" Margin="0,4,0,16"
+                               Text="Optional. Scripts, notes, dotfiles or project folders that discovery did not offer. Overlaps are captured once, and DevBR's own folders are never included." />
+                    <ItemsControl ItemsSource="{Binding CustomPaths}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,4">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource Button.Subtle}" ToolTip="Remove"
+                                            Command="{Binding DataContext.RemoveCustomCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                            AutomationProperties.Name="{Binding StringFormat='Remove {0}'}">
+                                        <TextBlock Text="&#xE711;" Style="{StaticResource Text.Icon}" FontSize="11" />
+                                    </Button>
+                                    <TextBlock Text="{Binding}" Style="{StaticResource Text.Body}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Nothing added." Style="{StaticResource Text.Caption}" Visibility="{Binding CustomPaths.Count, Converter={StaticResource HasNoValue}}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Style="{StaticResource Button.Secondary}" Content="Add folder…" Command="{Binding AddFolderCommand}" />
+                        <Button Style="{StaticResource Button.Secondary}" Content="Add files…" Command="{Binding AddFilesCommand}" Margin="8,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- 3. Review -->
+                <StackPanel Visibility="{Binding IsStep3, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Review" Style="{StaticResource Text.SectionTitle}" />
+                    <StackPanel Visibility="{Binding IsPlanning, Converter={StaticResource BoolToVisibility}}" Margin="0,12,0,0">
+                        <ProgressBar IsIndeterminate="True" Height="4" AutomationProperties.Name="Preparing plan" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding PlanStatus}" Style="{StaticResource Text.Muted}" Margin="0,8,0,0" Visibility="{Binding PlanStatus, Converter={StaticResource HasValue}}" />
+                    <TextBlock Text="{Binding PlanSummary}" Style="{StaticResource Text.Label}" Margin="0,8,0,12" Visibility="{Binding Plan, Converter={StaticResource HasValue}}" />
+
+                    <controls:InfoBar Severity="Warning" Title="This backup must be encrypted" Margin="0,0,0,8"
+                                      Message="You will set a password in the next step."
+                                      Visibility="{Binding EncryptionReasons.Count, Converter={StaticResource HasValue}}" />
+                    <ItemsControl ItemsSource="{Binding EncryptionReasons}" Focusable="False" Margin="16,0,0,8">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding StringFormat='• {0}'}" Style="{StaticResource Text.Muted}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <ItemsControl ItemsSource="{Binding Findings}" ItemTemplate="{StaticResource Finding}" Focusable="False" AutomationProperties.Name="Findings" />
+
+                    <TextBlock Text="Excluded folders" Style="{StaticResource Text.Label}" Margin="0,16,0,4" />
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="0,0,0,8"
+                               Text="Regenerable folders inside repositories and your own folders. A folder that contains files tracked by Git is always kept." />
+                    <ItemsControl ItemsSource="{Binding Rules}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:ExclusionRuleRow}">
+                                <!-- TextBlock content: folder names such as node_modules contain underscores, which WPF would read as access keys. -->
+                                <CheckBox IsChecked="{Binding Enabled}" ToolTip="{Binding Description}" Margin="0,0,16,4"
+                                          AutomationProperties.Name="{Binding FolderName}" AutomationProperties.HelpText="{Binding Description}">
+                                    <TextBlock Text="{Binding FolderName}" />
+                                </CheckBox>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Style="{StaticResource Button.Secondary}" Content="Update plan" Command="{Binding ReplanCommand}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                            Visibility="{Binding Plan, Converter={StaticResource HasNoValue}}" />
+                    <Border Style="{StaticResource Card}" Padding="0" Margin="0,12,0,0" Visibility="{Binding AppliedExclusions.Count, Converter={StaticResource HasValue}}">
+                        <ItemsControl ItemsSource="{Binding AppliedExclusions}" ItemTemplate="{StaticResource CaptureRowTemplate}" Focusable="False" AutomationProperties.Name="Excluded folders" />
+                    </Border>
+                </StackPanel>
+
+                <!-- 4. Output -->
+                <StackPanel Visibility="{Binding IsStep4, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Where and how to save it" Style="{StaticResource Text.SectionTitle}" />
+                    <TextBlock Text="Backup file" Style="{StaticResource Text.Label}" Margin="0,16,0,4" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Browse…" Command="{Binding BrowseOutputCommand}" Margin="8,0,0,0" />
+                        <TextBox Text="{Binding OutputPath, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Backup file path" />
+                    </DockPanel>
+                    <CheckBox IsChecked="{Binding AllowOverwrite}" Margin="0,8,0,0" Visibility="{Binding OutputExists, Converter={StaticResource BoolToVisibility}}"
+                              Content="A file with this name exists. Replace it once the new backup has been verified." />
+
+                    <TextBlock Text="Compression" Style="{StaticResource Text.Label}" Margin="0,16,0,4" />
+                    <ComboBox ItemsSource="{Binding CompressionOptions}" SelectedItem="{Binding Compression}" Width="200" HorizontalAlignment="Left" AutomationProperties.Name="Compression" />
+
+                    <CheckBox IsChecked="{Binding Encrypt}" IsEnabled="{Binding EncryptionForced, Converter={x:Static vm:BackupLabels.Not}}" Margin="0,20,0,0"
+                              Content="Encrypt with a password (AES-256; file names are hidden too)" />
+                    <TextBlock Text="Required because the selection includes credentials or secrets." Style="{StaticResource Text.Caption}" Margin="28,2,0,0"
+                               Visibility="{Binding EncryptionForced, Converter={StaticResource BoolToVisibility}}" />
+                    <StackPanel Margin="28,12,0,0" Visibility="{Binding Encrypt, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="Password" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                        <PasswordBox x:Name="Password" Width="320" HorizontalAlignment="Left" PasswordChanged="OnPasswordChanged" AutomationProperties.Name="Backup password" />
+                        <TextBlock Text="Confirm password" Style="{StaticResource Text.Label}" Margin="0,8,0,4" />
+                        <PasswordBox x:Name="Confirm" Width="320" HorizontalAlignment="Left" PasswordChanged="OnPasswordChanged" AutomationProperties.Name="Confirm backup password" />
+                        <TextBlock Text="{Binding PasswordError}" Foreground="{DynamicResource DevBR.Error}" Margin="0,8,0,0" Visibility="{Binding PasswordError, Converter={StaticResource HasValue}}" />
+                        <TextBlock Style="{StaticResource Text.Caption}" Margin="0,8,0,0"
+                                   Text="DevBR cannot recover a forgotten password. Keep it somewhere safe, separate from the backup." />
+                    </StackPanel>
+                    <controls:InfoBar Severity="Warning" Title="Not encrypted" Message="{Binding Disclosure}" Margin="0,16,0,0"
+                                      Visibility="{Binding ShowDisclosure, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Text="{Binding ScratchFolder, StringFormat='Temporary staging: {0} (change it in Settings)'}" Style="{StaticResource Text.Caption}" Margin="0,16,0,0" />
+                </StackPanel>
+
+                <!-- 5. Confirm -->
+                <StackPanel Visibility="{Binding IsStep5, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Confirm the plan" Style="{StaticResource Text.SectionTitle}" />
+                    <TextBlock Text="{Binding ConfirmSummary}" Style="{StaticResource Text.Body}" Margin="0,6,0,12" />
+                    <Border Style="{StaticResource Card}" Padding="0">
+                        <ItemsControl ItemsSource="{Binding Capture}" ItemTemplate="{StaticResource CaptureRowTemplate}" Focusable="False" AutomationProperties.Name="Capture plan" />
+                    </Border>
+                    <TextBlock Style="{StaticResource Text.Caption}" Margin="0,12,0,0"
+                               Text="Close applications that use these files (editors, Docker Desktop, Git tools) for the most consistent backup." />
+                </StackPanel>
+
+                <!-- 6. Run and result -->
+                <StackPanel Visibility="{Binding IsStep6, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="{Binding RunStage}" Style="{StaticResource Text.SectionTitle}" AutomationProperties.LiveSetting="Polite" />
+                        <ProgressBar Height="6" Margin="0,12,0,12" Maximum="100" Value="{Binding RunPercent}" IsIndeterminate="{Binding RunIndeterminate}"
+                                     AutomationProperties.Name="Backup progress" />
+                        <TextBlock Text="{Binding RunCounts}" Style="{StaticResource Text.Body}" />
+                        <TextBlock Text="{Binding RunItem}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,4,0,12" />
+                        <Button Style="{StaticResource Button.Secondary}" Content="Cancel" Command="{Binding CancelCommand}" HorizontalAlignment="Left" />
+                    </StackPanel>
+                    <StackPanel Visibility="{Binding Result, Converter={StaticResource HasValue}}">
+                        <controls:InfoBar Severity="{Binding ResultSeverity}" Title="{Binding ResultTitle}" Message="{Binding ResultDetail}" />
+                        <ItemsControl ItemsSource="{Binding ResultRows}" Margin="0,12,0,0" Focusable="False" AutomationProperties.Name="Backup report">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:ResultRow}">
+                                    <StackPanel Margin="0,4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="Icon" Text="&#xE7BA;" Style="{StaticResource Text.Icon}" FontSize="13" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" />
+                                            <TextBlock Text="{Binding Status, StringFormat=' · {0}'}" Style="{StaticResource Text.Muted}" />
+                                            <TextBlock Text="{Binding Detail, StringFormat=' · {0}'}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <ItemsControl ItemsSource="{Binding Warnings}" Margin="22,2,0,0" Focusable="False">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsComplete}" Value="True">
+                                            <Setter TargetName="Icon" Property="Text" Value="&#xE930;" />
+                                            <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource DevBR.Success}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                            <Button Style="{StaticResource Button.Secondary}" Content="Open folder" Command="{Binding OpenOutputFolderCommand}"
+                                    Visibility="{Binding Result.OutputPath, Converter={StaticResource HasValue}}" />
+                            <Button Style="{StaticResource Button.Secondary}" Content="Start a new backup" Command="{Binding StartOverCommand}" Margin="8,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Wizard navigation -->
+                <StackPanel Orientation="Horizontal" Margin="0,24,0,0" Visibility="{Binding IsStep6, Converter={StaticResource HasNoValue}}">
+                    <Button Style="{StaticResource Button.Secondary}" Content="Back" Command="{Binding BackCommand}" Margin="0,0,8,0"
+                            Visibility="{Binding CanGoBack, Converter={StaticResource BoolToVisibility}}" />
+                    <Button Style="{StaticResource Button.Primary}" Command="{Binding NextCommand}"
+                            Content="{Binding Step, Converter={x:Static vm:BackupLabels.NextLabel}}"
+                            AutomationProperties.Name="{Binding Step, Converter={x:Static vm:BackupLabels.NextLabel}}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
     </StackPanel>
 </UserControl>

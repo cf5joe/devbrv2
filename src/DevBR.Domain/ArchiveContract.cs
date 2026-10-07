@@ -61,4 +61,5 @@ public sealed record ArchiveEntry(
     DateTimeOffset LastWriteTimeUtc,
     string? Sha256,
     FileAttributes Attributes,
-    string? LinkTarget);
+    string? LinkTarget,
+    string ArchivePath = "");

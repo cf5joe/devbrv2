@@ -22,6 +22,9 @@ public sealed class MachineDefinition
     /// <summary>Virtual files that are cloud placeholders (reading them would download them).</summary>
     public List<string> Placeholders { get; init; } = [];
 
+    /// <summary>Virtual files held open exclusively by another process (reads fail with a sharing violation).</summary>
+    public List<string> Locked { get; init; } = [];
+
     /// <summary>Virtual file path → version resource, standing in for PE metadata.</summary>
     public Dictionary<string, string> FileVersions { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -242,6 +245,16 @@ internal sealed class SimulatedFileSystem(string root, MachineDefinition definit
 
     public string? GetFileVersion(string path)
         => definition.FileVersions.TryGetValue(Normalize(path), out var version) ? version : null;
+
+    public Stream OpenRead(string path)
+    {
+        if (definition.Locked.Any(p => PathEquals(p, Normalize(path))))
+        {
+            throw new IOException($"The process cannot access the file '{path}' because it is being used by another process.", unchecked((int)0x80070020));
+        }
+
+        return new FileStream(Map(root, path), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+    }
 
     private bool IsPlaceholder(string path) => definition.Placeholders.Any(p => PathEquals(p, Normalize(path)));
 

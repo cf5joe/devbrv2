@@ -13,6 +13,7 @@
     <ProjectReference Include="..\DevBR.Infrastructure\DevBR.Infrastructure.csproj" />
     <ProjectReference Include="..\DevBR.Discovery\DevBR.Discovery.csproj" />
     <ProjectReference Include="..\DevBR.Simulation\DevBR.Simulation.csproj" />
+    <ProjectReference Include="..\DevBR.Backup\DevBR.Backup.csproj" />
     <!-- Built alongside the GUI so DevBR.ArchiveWorker.exe and DevBR.Broker.exe land in the same folder. -->
     <ProjectReference Include="..\DevBR.ArchiveWorker\DevBR.ArchiveWorker.csproj" />
     <ProjectReference Include="..\DevBR.Broker\DevBR.Broker.csproj" />

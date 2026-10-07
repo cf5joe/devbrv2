@@ -109,6 +109,12 @@ public sealed class SevenZipArchiveService : IArchiveService
             progress?.Report(new ArchiveProgress("Verifying", null, null, 0));
             VerifyCreatedArchive(temp, request.Password, fileCount, cancellationToken);
 
+            long verifiedPayload = 0;
+            if (request.PayloadIndexPath is not null)
+            {
+                verifiedPayload = VerifyPayloadHashes(temp, request.Password, Path.Combine(source, ArchivePathValidator.Normalize(request.PayloadIndexPath)), totalBytes, progress, cancellationToken);
+            }
+
             try
             {
                 File.Move(temp, output, overwrite: request.AllowOverwrite);
@@ -118,7 +124,7 @@ public sealed class SevenZipArchiveService : IArchiveService
                 throw new ArchiveException(ArchiveErrorKind.OutputExists, "A file appeared at the output path while the backup was being created.", ex);
             }
 
-            return new ArchiveCreateResult(output, fileCount, totalBytes, new FileInfo(output).Length, request.Password is not null, Verified: true);
+            return new ArchiveCreateResult(output, fileCount, totalBytes, new FileInfo(output).Length, request.Password is not null, Verified: true, verifiedPayload);
         }
         catch (Exception ex) when (ex is not ArchiveException and not OperationCanceledException)
         {
@@ -156,6 +162,77 @@ public sealed class SevenZipArchiveService : IArchiveService
         {
             throw new ArchiveException(ArchiveErrorKind.Corrupt, "The new archive failed its integrity check.");
         }
+    }
+
+    /// <summary>
+    /// Re-reads every payload file from the archive and compares its SHA-256 with the index written
+    /// during staging. Also proves the archive holds no payload the index does not describe.
+    /// </summary>
+    private static long VerifyPayloadHashes(string archivePath, SecretText? password, string indexPath, long totalBytes, IProgress<ArchiveProgress>? progress, CancellationToken cancellationToken)
+    {
+        var expected = new Dictionary<string, (string Sha256, long Size)>(StringComparer.OrdinalIgnoreCase);
+        using (var reader = new StreamReader(indexPath))
+        {
+            string? line;
+            var lineNumber = 0;
+            while ((line = reader.ReadLine()) is not null)
+            {
+                lineNumber++;
+                if (line.Length == 0)
+                {
+                    continue;
+                }
+
+                using var json = System.Text.Json.JsonDocument.Parse(line);
+                var root = json.RootElement;
+                if (!root.TryGetProperty("archivePath", out var pathElement) || pathElement.GetString() is not { Length: > 0 } entryPath)
+                {
+                    throw new ArchiveException(ArchiveErrorKind.Corrupt, $"Payload index line {lineNumber} has no archive path.");
+                }
+
+                if (root.TryGetProperty("entryType", out var type) && type.GetString() != "File")
+                {
+                    continue;
+                }
+
+                var hash = root.TryGetProperty("sha256", out var hashElement) ? hashElement.GetString() : null;
+                var size = root.TryGetProperty("size", out var sizeElement) ? sizeElement.GetInt64() : 0;
+                expected[ArchivePathValidator.Normalize(entryPath)] = (hash ?? string.Empty, size);
+            }
+        }
+
+        using var extractor = Open(archivePath, password);
+        var entries = ReadEntries(extractor, cancellationToken);
+        var payloadPrefix = DevBR.Domain.ArchiveContract.PayloadPrefix.Replace('/', '\\');
+        long verified = 0, bytes = 0;
+
+        foreach (var entry in entries.Where(e => !e.IsDirectory && e.Path.StartsWith(payloadPrefix, StringComparison.OrdinalIgnoreCase)))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!expected.Remove(entry.Path, out var want))
+            {
+                throw new ArchiveException(ArchiveErrorKind.Corrupt, $"The archive contains '{entry.Path}', which its index does not describe.");
+            }
+
+            using var sink = new BoundedHashingStream(Stream.Null, entry.Size, cancellationToken);
+            ExtractEntry(extractor, entry.Index, sink);
+            var actual = sink.GetHashHex();
+            if (sink.BytesWritten != want.Size || !string.Equals(actual, want.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArchiveException(ArchiveErrorKind.Corrupt, $"'{entry.Path}' does not match the hash recorded when it was captured.");
+            }
+
+            verified++;
+            bytes += entry.Size;
+            progress?.Report(new ArchiveProgress("Verifying", totalBytes == 0 ? null : (int)Math.Min(100, bytes * 100 / totalBytes), entry.Path, bytes));
+        }
+
+        if (expected.Count > 0)
+        {
+            throw new ArchiveException(ArchiveErrorKind.Corrupt, $"{expected.Count} indexed file(s) are missing from the archive, e.g. '{expected.Keys.First()}'.");
+        }
+
+        return verified;
     }
 
     private ArchiveInspection Inspect(ArchiveInspectRequest request, CancellationToken cancellationToken)
@@ -196,7 +273,7 @@ public sealed class SevenZipArchiveService : IArchiveService
             extractor.IsSolid,
             entries.LongCount(e => !e.IsDirectory),
             entries.Sum(e => e.Size),
-            entries,
+            request.IncludeEntries ? entries : [],
             inline);
     }
 

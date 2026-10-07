@@ -245,6 +245,9 @@ internal sealed class WindowsFileSystem : IMachineFileSystem
         }
     }
 
+    public Stream OpenRead(string path)
+        => new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan);
+
     private static bool IsPlaceholder(FileAttributes attributes)
         => (attributes & (RecallOnOpen | RecallOnDataAccess | FileAttributes.Offline)) != 0;
 

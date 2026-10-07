@@ -459,6 +459,7 @@
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "DevBR.Application": "[0.1.0, )",
           "DevBR.ArchiveWorker": "[0.1.0, )",
+          "DevBR.Backup": "[0.1.0, )",
           "DevBR.Broker": "[0.1.0, )",
           "DevBR.Discovery": "[0.1.0, )",
           "DevBR.Infrastructure": "[0.1.0, )",
@@ -487,6 +488,14 @@
           "DevBR.Archive": "[0.1.0, )",
           "DevBR.Infrastructure": "[0.1.0, )",
           "DevBR.Ipc": "[0.1.0, )"
+        }
+      },
+      "devbr.backup": {
+        "type": "Project",
+        "dependencies": {
+          "DevBR.Application": "[0.1.0, )",
+          "DevBR.Discovery": "[0.1.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
         }
       },
       "devbr.broker": {

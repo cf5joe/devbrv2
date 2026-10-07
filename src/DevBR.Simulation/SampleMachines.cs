@@ -166,10 +166,14 @@ public static class SampleMachines
          .File($@"{home}\.wslconfig", "[wsl2]\nmemory=8GB\n");
 
         b.File($@"{home}\.docker\config.json", """{ "auths": { "registry.example.com": { "auth": "YWxpY2U6c2ltdWxhdGVk" } }, "credsStore": "desktop" }""")
-         .File($@"{roaming}\Docker\settings-store.json", """{ "memoryMiB": 8192 }""");
+         .LockedFile($@"{roaming}\Docker\settings-store.json", """{ "memoryMiB": 8192 }""");
 
         // --- Repositories -----------------------------------------------------------------------------------
-        b.GitRepository(@"D:\Projects\webapp", remoteUrl: "https://github.com/alice/webapp.git")
+        b.GitRepository(@"D:\Projects\webapp", remoteUrl: "https://github.com/alice/webapp.git", tracked: ["README.md", "src/app.ts", "bin/build.sh", ".gitmodules", "CLAUDE.md"])
+         .File(@"D:\Projects\webapp\src\app.ts", "export const app = 1;")
+         .File(@"D:\Projects\webapp\bin\build.sh", "#!/bin/sh\nnpm run build\n")
+         .File(@"D:\Projects\webapp\obj\Debug\cache.bin", "untracked build output")
+         .File(@"D:\Projects\webapp\notes.local.md", "untracked but kept")
          .File(@"D:\Projects\webapp\CLAUDE.md", "Run npm test before committing.")
          .File(@"D:\Projects\webapp\.claude\settings.json", "{}")
          .File(@"D:\Projects\webapp\.vscode\mcp.json", """{ "servers": {} }""")

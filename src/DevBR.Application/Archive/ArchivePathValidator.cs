@@ -1,7 +1,7 @@
 using System.Buffers;
-using DevBR.Application.Archive;
 
-namespace DevBR.Archive;
+
+namespace DevBR.Application.Archive;
 
 /// <summary>
 /// Validates entry names from untrusted archives before anything is written. Every archive is treated

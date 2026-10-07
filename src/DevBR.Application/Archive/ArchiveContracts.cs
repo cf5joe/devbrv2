@@ -9,6 +9,11 @@ public enum CompressionPreset
 }
 
 /// <param name="SourceDirectory">The staging root; its contents become the archive root.</param>
+/// <param name="PayloadIndexPath">
+/// Relative path (inside <paramref name="SourceDirectory"/>) of an NDJSON index whose lines carry
+/// <c>archivePath</c> and <c>sha256</c>. When set, every indexed file is re-read from the new archive and
+/// its hash compared before the archive is moved to its final name.
+/// </param>
 /// <param name="Password">Non-null enables AES-256 with header encryption (file names hidden).</param>
 /// <param name="AllowOverwrite">An existing output is never replaced without an explicit overwrite decision.</param>
 public sealed record ArchiveCreateRequest(
@@ -16,7 +21,8 @@ public sealed record ArchiveCreateRequest(
     string OutputPath,
     SecretText? Password,
     CompressionPreset Compression,
-    bool AllowOverwrite);
+    bool AllowOverwrite,
+    string? PayloadIndexPath = null);
 
 public sealed record ArchiveCreateResult(
     string OutputPath,
@@ -24,14 +30,16 @@ public sealed record ArchiveCreateResult(
     long UncompressedBytes,
     long ArchiveBytes,
     bool Encrypted,
-    bool Verified);
+    bool Verified,
+    long VerifiedPayloadFiles = 0);
 
 /// <param name="InlineEntryPaths">Small entries (e.g. manifest.json) to return in the result, bounded by <paramref name="MaxInlineBytes"/>.</param>
 public sealed record ArchiveInspectRequest(
     string ArchivePath,
     SecretText? Password,
     IReadOnlyList<string> InlineEntryPaths,
-    long MaxInlineBytes);
+    long MaxInlineBytes,
+    bool IncludeEntries = true);
 
 public sealed record ArchiveEntryInfo(
     int Index,

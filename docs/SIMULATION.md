@@ -33,7 +33,8 @@ Build your own with `SimulatedMachineBuilder` (see `tests/DevBR.Tests/Discovery`
 
 - **Settings → Simulated machines**: create the sample workstation or clean target, open any machine
   folder, or switch back to this computer. The sidebar shows a *Simulated machine* badge while one is active.
-- Command line: `DevBR.exe --machine sample`, `--machine clean`, or `--machine <folder>`.
+- Command line: `DevBR.exe --machine sample`, `--machine clean`, or `--machine <folder>`; add
+  `--open-backup <file.devbr>` to open a backup on the Restore page directly.
 
 Simulations are stored under `%LOCALAPPDATA%\DevBR\simulations`. Each machine keeps its own discovery
 catalog and backup selection.

@@ -56,6 +56,7 @@ public partial class App
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
             window.Show();
+            await OpenBackupFromCommandLineAsync(e.Args, _host.Services);
 
             Log.Information("DevBR {Version} ({Channel}) started.", BuildInfo.Version, BuildInfo.ReleaseChannel);
             await _host.Services.GetRequiredService<ActivityStore>().AddAsync(EventSeverity.Information, "Application", $"DevBR {BuildInfo.Version} started.");
@@ -145,6 +146,19 @@ public partial class App
 
         machine.UseSimulated(folder);
         Log.Information("Started on simulated machine {Folder}.", folder);
+    }
+
+    /// <summary>Development builds accept <c>--open-backup &lt;file&gt;</c> to open a backup on the Restore page.</summary>
+    private static async Task OpenBackupFromCommandLineAsync(string[] args, IServiceProvider services)
+    {
+        var index = Array.FindIndex(args, a => a.Equals("--open-backup", StringComparison.OrdinalIgnoreCase));
+        if (index < 0 || index + 1 >= args.Length || !BuildInfo.IsDevelopmentBuild)
+        {
+            return;
+        }
+
+        services.GetRequiredService<Navigator>().NavigateTo<RestoreViewModel>();
+        await services.GetRequiredService<RestoreViewModel>().OpenAsync(args[index + 1]);
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

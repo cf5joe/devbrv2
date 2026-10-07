@@ -109,8 +109,80 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <controls:InfoBar Margin="0,8,0,0" Severity="Information" Title="Restore planning is not included in this build yet"
-                              Message="Opening this backup read only its index and manifest. Nothing was extracted, run, or changed on this computer." />
+            <TextBlock Text="What this backup contains" Style="{StaticResource Text.SectionTitle}" Margin="0,24,0,12" />
+            <Grid Height="420">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Style="{StaticResource Card}" Padding="4">
+                    <ListBox ItemsSource="{Binding Artifacts}" SelectedItem="{Binding SelectedArtifact}" AutomationProperties.Name="Backup contents"
+                             Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:BackupArtifactRow}">
+                                <StackPanel Margin="4,2">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="Icon" Text="&#xE7BA;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <TextBlock Style="{StaticResource Text.Caption}" Margin="20,0,0,0">
+                                        <Run Text="{Binding Owner, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Detail, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Status, Mode=OneWay}" />
+                                    </TextBlock>
+                                </StackPanel>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsComplete}" Value="True">
+                                        <Setter TargetName="Icon" Property="Text" Value="&#xE930;" />
+                                        <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource DevBR.Success}" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+                <Border Grid.Column="2" Style="{StaticResource Card}" Padding="16,12">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" DataContext="{Binding SelectedArtifact}" Margin="0,0,0,8">
+                            <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" TextTrimming="CharacterEllipsis" />
+                            <ItemsControl ItemsSource="{Binding Warnings}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource DevBR.Warning}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                        <TextBlock DockPanel.Dock="Bottom" Text="{Binding EntriesNote}" Style="{StaticResource Text.Caption}" Visibility="{Binding EntriesNote, Converter={StaticResource HasValue}}" />
+                        <ListBox ItemsSource="{Binding Entries}" AutomationProperties.Name="Files in the selected item" Background="Transparent" BorderThickness="0"
+                                 VirtualizingPanel.IsVirtualizing="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding Path}" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="8,3" />
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:BackupEntryRow}">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding Size}" Style="{StaticResource Text.Caption}" Margin="8,0,0,0" />
+                                        <TextBlock Text="{Binding Path}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <controls:InfoBar Margin="0,16,0,0" Severity="Information" Title="Restore planning is not included in this build yet"
+                              Message="Opening this backup unpacked only its verified indexes into a private temporary folder. No backed-up files were extracted, and nothing was run or changed on this computer." />
         </StackPanel>
     </StackPanel>
 </UserControl>

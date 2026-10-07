@@ -8,6 +8,9 @@
     <Project Path="src/DevBR.ArchiveWorker/DevBR.ArchiveWorker.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="src/DevBR.Backup/DevBR.Backup.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/DevBR.Broker/DevBR.Broker.csproj">
       <Platform Project="x64" />
     </Project>

@@ -11,6 +11,10 @@ public interface IDialogService
 
     string? PickFolder(string title, string? initialDirectory);
 
+    IReadOnlyList<string> PickFiles(string title);
+
+    string? PickSaveBackupFile(string suggestedPath);
+
     void RevealFolder(string path);
 
     void OpenDocument(string path);
@@ -40,6 +44,28 @@ public sealed class DialogService : IDialogService
         }
 
         return dialog.ShowDialog() == true ? dialog.FolderName : null;
+    }
+
+    public IReadOnlyList<string> PickFiles(string title)
+    {
+        var dialog = new OpenFileDialog { Title = title, Multiselect = true, CheckFileExists = true };
+        return dialog.ShowDialog() == true ? dialog.FileNames : [];
+    }
+
+    public string? PickSaveBackupFile(string suggestedPath)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Save the backup as",
+            Filter = $"DevBR backups (*{ArchiveContract.FileExtension})|*{ArchiveContract.FileExtension}",
+            DefaultExt = ArchiveContract.FileExtension,
+            AddExtension = true,
+            FileName = Path.GetFileName(suggestedPath),
+            InitialDirectory = Path.GetDirectoryName(suggestedPath),
+            // Replacing an existing file is confirmed separately, in the wizard, as an explicit decision.
+            OverwritePrompt = false,
+        };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
     public void RevealFolder(string path)

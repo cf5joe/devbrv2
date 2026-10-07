@@ -103,6 +103,14 @@ public sealed class SimulatedMachineBuilder
         return this;
     }
 
+    /// <summary>A file another program holds open exclusively (e.g. a running app's database).</summary>
+    public SimulatedMachineBuilder LockedFile(string path, string content = "locked")
+    {
+        File(path, content);
+        _definition.Locked.Add(path);
+        return this;
+    }
+
     public SimulatedMachineBuilder Placeholder(string path, string content = "cloud-only")
     {
         File(path, content);
@@ -190,8 +198,9 @@ public sealed class SimulatedMachineBuilder
     public SimulatedMachineBuilder Shortcut(string linkPath, string targetPath) => File(linkPath, ShellLinkWriter.Create(targetPath));
 
     /// <summary>A Git working tree with HEAD, config and one object, enough for detection.</summary>
-    public SimulatedMachineBuilder GitRepository(string path, string branch = "main", string? remoteUrl = null, bool lfs = false, bool locked = false)
+    public SimulatedMachineBuilder GitRepository(string path, string branch = "main", string? remoteUrl = null, bool lfs = false, bool locked = false, IReadOnlyList<string>? tracked = null)
     {
+        File($@"{path}\.git\index", GitIndexWriter.Create(tracked ?? ["README.md"]));
         var git = $@"{path}\.git";
         File($@"{git}\HEAD", $"ref: refs/heads/{branch}\n");
         var config = "[core]\n\trepositoryformatversion = 0\n\tbare = false\n";

@@ -363,6 +363,14 @@
           "DevBR.Ipc": "[0.1.0, )"
         }
       },
+      "devbr.backup": {
+        "type": "Project",
+        "dependencies": {
+          "DevBR.Application": "[0.1.0, )",
+          "DevBR.Discovery": "[0.1.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+        }
+      },
       "devbr.broker": {
         "type": "Project",
         "dependencies": {
