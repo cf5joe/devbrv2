@@ -1,0 +1,45 @@
+<UserControl x:Class="DevBR.App.Views.DiscoveryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:DevBR.App.ViewModels"
+             xmlns:controls="clr-namespace:DevBR.App.Controls"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:DiscoveryViewModel}">
+    <StackPanel>
+        <TextBlock Text="DISCOVERY" Style="{StaticResource Text.Overline}" />
+        <TextBlock Text="Discover this computer" Style="{StaticResource Text.PageTitle}" Margin="0,6,0,0" />
+        <TextBlock Style="{StaticResource Text.Lead}" Margin="0,10,0,0" MaxWidth="720" HorizontalAlignment="Left"
+                   Text="A comprehensive, reported search of the sources you can access. DevBR never launches programs it finds, bypasses permissions, or changes installed applications." />
+
+        <controls:InfoBar Margin="0,24,0,0" Severity="Information" Title="{Binding ElevationTitle}" Message="{Binding ElevationDetail}" />
+
+        <TextBlock Text="Scan scope" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,12" />
+        <ItemsControl ItemsSource="{Binding Scope}" Focusable="False">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:ScopeItem}">
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="20,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding Glyph}" Style="{StaticResource Text.Icon}" FontSize="20" Foreground="{DynamicResource DevBR.AccentText}"
+                                       VerticalAlignment="Top" Margin="0,2,16,0" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Label}" />
+                                <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Muted}" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+            <Button Style="{StaticResource Button.Primary}" Command="{Binding StartDiscoveryCommand}" Content="Start discovery" />
+            <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="16,0,0,0"
+                       Text="The discovery engine is not included in this build yet." />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

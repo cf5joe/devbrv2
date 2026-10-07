@@ -1,0 +1,116 @@
+<UserControl x:Class="DevBR.App.Views.RestoreView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:DevBR.App.ViewModels"
+             xmlns:controls="clr-namespace:DevBR.App.Controls"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:RestoreViewModel}">
+    <StackPanel>
+        <TextBlock Text="RESTORE" Style="{StaticResource Text.Overline}" />
+        <TextBlock Text="Restore from a backup" Style="{StaticResource Text.PageTitle}" Margin="0,6,0,0" />
+        <TextBlock Style="{StaticResource Text.Lead}" Margin="0,10,0,0" MaxWidth="720" HorizontalAlignment="Left"
+                   Text="Open a .devbr file to see what it contains. Nothing is restored until you have reviewed and approved a plan for this computer." />
+
+        <!-- Step 1: choose a file -->
+        <Border Style="{StaticResource Card}" Margin="0,28,0,0" Visibility="{Binding IsChooseFile, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <TextBlock Text="Choose a backup file" Style="{StaticResource Text.SectionTitle}" />
+                <TextBlock Style="{StaticResource Text.Muted}" Margin="0,6,0,20"
+                           Text="DevBR reads the backup's index and manifest in an isolated background process. Archive contents are never executed." />
+                <Button Style="{StaticResource Button.Primary}" Command="{Binding BrowseCommand}" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8E5;" Style="{StaticResource Text.Icon}" Foreground="{DynamicResource DevBR.AccentForeground}" Margin="0,0,10,0" />
+                        <TextBlock Text="Browse for a backup…" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- Inspecting -->
+        <Border Style="{StaticResource Card}" Margin="0,28,0,0" Visibility="{Binding IsInspecting, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <TextBlock Text="{Binding FileName, StringFormat='Reading {0}…'}" Style="{StaticResource Text.SectionTitle}" />
+                <ProgressBar IsIndeterminate="True" Height="4" Margin="0,16,0,16" AutomationProperties.Name="Reading backup" />
+                <Button Style="{StaticResource Button.Secondary}" Command="{Binding CancelInspectionCommand}" Content="Cancel" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Border>
+
+        <!-- Step 2: password -->
+        <Border Style="{StaticResource Card}" Margin="0,28,0,0" Visibility="{Binding IsNeedsPassword, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE72E;" Style="{StaticResource Text.Icon}" FontSize="18" Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,12,0" />
+                    <TextBlock Text="This backup is encrypted" Style="{StaticResource Text.SectionTitle}" />
+                </StackPanel>
+                <TextBlock Style="{StaticResource Text.Muted}" Margin="0,6,0,16"
+                           Text="{Binding FileName, StringFormat='Enter the password for {0}. Its contents, including file names, stay hidden until it is unlocked.'}" />
+                <TextBlock Text="Password" Style="{StaticResource Text.Label}" Margin="0,0,0,6" />
+                <PasswordBox x:Name="Password" MaxWidth="360" HorizontalAlignment="Left" Width="360" KeyDown="OnPasswordKeyDown"
+                             AutomationProperties.Name="Backup password" />
+                <TextBlock Text="{Binding PasswordError}" Foreground="{DynamicResource DevBR.Error}" Margin="0,8,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+                            <Style.Triggers>
+                                <Trigger Property="Text" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                    <Button Style="{StaticResource Button.Primary}" Content="Unlock" Click="OnUnlockClick" />
+                    <Button Style="{StaticResource Button.Secondary}" Content="Choose another file" Command="{Binding StartOverCommand}" Margin="12,0,0,0" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Failure -->
+        <StackPanel Margin="0,28,0,0" Visibility="{Binding IsFailed, Converter={StaticResource BoolToVisibility}}">
+            <controls:InfoBar Severity="Error" Title="{Binding ErrorTitle}" Message="{Binding ErrorMessage}" />
+            <Button Style="{StaticResource Button.Secondary}" Content="Choose another file" Command="{Binding StartOverCommand}" HorizontalAlignment="Left" Margin="0,16,0,0" />
+        </StackPanel>
+
+        <!-- Step 3: overview -->
+        <StackPanel Margin="0,28,0,0" Visibility="{Binding IsOverview, Converter={StaticResource BoolToVisibility}}">
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Choose another file" Command="{Binding StartOverCommand}" VerticalAlignment="Top" />
+                        <StackPanel>
+                            <TextBlock Text="{Binding FileName}" Style="{StaticResource Text.SectionTitle}" />
+                            <TextBlock Text="Backup overview" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                    <Rectangle Style="{StaticResource Divider}" />
+                    <ItemsControl ItemsSource="{Binding Details}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:DetailRow}">
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="200" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Label}" Style="{StaticResource Text.Muted}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Value}" Style="{StaticResource Text.Body}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding CaptureWarnings}" Margin="0,16,0,0" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <controls:InfoBar Severity="Warning" Title="Captured with a warning" Message="{Binding}" Margin="0,0,0,8" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <controls:InfoBar Margin="0,8,0,0" Severity="Information" Title="Restore planning is not included in this build yet"
+                              Message="Opening this backup read only its index and manifest. Nothing was extracted, run, or changed on this computer." />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

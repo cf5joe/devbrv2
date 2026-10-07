@@ -1,0 +1,185 @@
+<UserControl x:Class="DevBR.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:DevBR.App.ViewModels"
+             xmlns:services="clr-namespace:DevBR.App.Services"
+             xmlns:controls="clr-namespace:DevBR.App.Controls"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:SettingsViewModel}">
+    <StackPanel>
+        <TextBlock Text="SETTINGS" Style="{StaticResource Text.Overline}" />
+        <TextBlock Text="Settings" Style="{StaticResource Text.PageTitle}" Margin="0,6,0,0" />
+
+        <!-- Appearance -->
+        <TextBlock Text="Appearance" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,4" />
+        <TextBlock Text="Theme" Style="{StaticResource Text.Muted}" Margin="0,0,0,12" />
+        <controls:InfoBar Severity="Information" Title="High contrast is on" Margin="0,0,0,12"
+                          Message="DevBR is using your Windows high-contrast colors. Your theme choice applies when high contrast is turned off."
+                          Visibility="{Binding IsHighContrast, Converter={StaticResource BoolToVisibility}}" />
+        <ListBox Style="{StaticResource OptionList}" Margin="-6,0"
+                 ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" AutomationProperties.Name="Theme">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="5" />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem" BasedOn="{StaticResource OptionCard}">
+                    <Setter Property="Margin" Value="6" />
+                    <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:ThemeOption}">
+                    <StackPanel>
+                        <!-- Miniature preview of the preset -->
+                        <Border Height="72" CornerRadius="6" Background="{Binding Background}" BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="1" Padding="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Background="{Binding Surface}" CornerRadius="3" />
+                                <StackPanel Grid.Column="1" Margin="8,2,0,0">
+                                    <Border Height="6" Width="64" CornerRadius="3" Background="{Binding Text}" HorizontalAlignment="Left" Opacity="0.85" />
+                                    <Border Height="4" Width="90" CornerRadius="2" Background="{Binding Text}" HorizontalAlignment="Left" Opacity="0.4" Margin="0,6,0,0" />
+                                    <Border Height="14" Width="44" CornerRadius="3" Background="{Binding Accent}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" Margin="0,10,0,0" />
+                        <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock Text="Accent color" Style="{StaticResource Text.Muted}" Margin="0,20,0,12" />
+        <ListBox Style="{StaticResource OptionList}" ItemsSource="{Binding AccentOptions}" SelectedItem="{Binding SelectedAccent}" AutomationProperties.Name="Accent color">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem" BasedOn="{StaticResource Swatch}">
+                    <Setter Property="Background" Value="{Binding Fill}" />
+                    <Setter Property="Foreground" Value="{Binding Check}" />
+                    <Setter Property="ToolTip" Value="{Binding Name}" />
+                    <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                </Style>
+            </ListBox.ItemContainerStyle>
+        </ListBox>
+        <TextBlock Text="Text on accent colors is always switched to black or white for readable contrast." Style="{StaticResource Text.Caption}" Margin="0,4,0,0" />
+
+        <Rectangle Style="{StaticResource Divider}" Margin="0,32,0,0" />
+
+        <!-- Storage -->
+        <TextBlock Text="Storage" Style="{StaticResource Text.SectionTitle}" Margin="0,16,0,12" />
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Open" Command="{Binding OpenDataFolderCommand}"
+                            AutomationProperties.Name="Open app data folder" VerticalAlignment="Center" />
+                    <StackPanel Margin="0,0,16,0">
+                        <TextBlock Text="App data" Style="{StaticResource Text.Label}" />
+                        <TextBlock Text="{Binding DataFolder}" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="Settings, the local catalog, activity, logs and rollback records." Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                    </StackPanel>
+                </DockPanel>
+                <Rectangle Style="{StaticResource Divider}" />
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource Button.Subtle}" Content="Reset" Command="{Binding ResetScratchFolderCommand}"
+                                Visibility="{Binding HasCustomScratchFolder, Converter={StaticResource BoolToVisibility}}" Margin="0,0,8,0"
+                                AutomationProperties.Name="Reset scratch folder" />
+                        <Button Style="{StaticResource Button.Secondary}" Content="Change…" Command="{Binding ChangeScratchFolderCommand}"
+                                AutomationProperties.Name="Change scratch folder" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,16,0">
+                        <TextBlock Text="Scratch folder" Style="{StaticResource Text.Label}" />
+                        <TextBlock Text="{Binding ScratchFolder}" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="Temporary staging for large backups and restores. Choose a local drive with plenty of free space." Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Privileged helper -->
+        <TextBlock Text="Privileged helper" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,12" />
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource Text.Muted}"
+                           Text="Machine-wide changes, such as system environment variables, go through a separate helper that asks for administrator approval and accepts only specific, approved operations. Declining keeps all user-level work available." />
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                    <Button Style="{StaticResource Button.Secondary}" Command="{Binding TestBrokerCommand}" AutomationProperties.Name="Test privileged helper. Requires administrator approval.">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xEA18;" Style="{StaticResource Text.Icon}" FontSize="13" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
+                            <TextBlock Text="Test privileged helper" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <TextBlock Text="{Binding BrokerResult}" Style="{StaticResource Text.Body}" Margin="0,12,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- Diagnostics -->
+        <TextBlock Text="Diagnostics" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,12" />
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="Archive self-test" Style="{StaticResource Text.Label}" />
+                <TextBlock Style="{StaticResource Text.Muted}" Margin="0,4,0,0"
+                           Text="Creates, inspects and extracts sample backups in the scratch folder (with and without encryption) and checks every byte. The samples are deleted afterwards." />
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                    <Button Style="{StaticResource Button.Primary}" Content="Run self-test" Command="{Binding RunSelfTestCommand}" />
+                    <TextBlock Text="{Binding SelfTestStatus}" Style="{StaticResource Text.Body}" VerticalAlignment="Center" Margin="16,0,0,0" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding SelfTestResults}" Margin="0,12,0,0" Focusable="False" AutomationProperties.Name="Self-test results">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type services:SelfTestStep}">
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="320" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="Icon" Text="&#xE930;" Style="{StaticResource Text.Icon}" FontSize="14" Foreground="{DynamicResource DevBR.Success}" Margin="0,0,8,0" />
+                                <TextBlock x:Name="Result" Grid.Column="1" Text="Pass" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding Name}" Style="{StaticResource Text.Body}" />
+                                <TextBlock Grid.Column="3" Text="{Binding Detail}" Style="{StaticResource Text.Muted}" />
+                            </Grid>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Passed}" Value="False">
+                                    <Setter TargetName="Icon" Property="Text" Value="&#xEA39;" />
+                                    <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource DevBR.Error}" />
+                                    <Setter TargetName="Result" Property="Text" Value="Fail" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Rectangle Style="{StaticResource Divider}" />
+                <TextBlock Text="Background archive process" Style="{StaticResource Text.Label}" />
+                <TextBlock Style="{StaticResource Text.Muted}" Margin="0,4,0,0"
+                           Text="Archives are read and written in a separate process so that a damaged file or library failure cannot close DevBR." />
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                    <Button Style="{StaticResource Button.Secondary}" Content="Check worker" Command="{Binding PingWorkerCommand}" />
+                    <Button Style="{StaticResource Button.Secondary}" Content="Simulate worker failure" Command="{Binding SimulateWorkerFailureCommand}" Margin="8,0,0,0"
+                            Visibility="{Binding IsDevelopmentBuild, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+                <TextBlock Text="{Binding WorkerResult}" Style="{StaticResource Text.Body}" Margin="0,12,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- About -->
+        <TextBlock Text="About" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,12" />
+        <Border Style="{StaticResource Card}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Third-party notices" Command="{Binding OpenNoticesCommand}" VerticalAlignment="Center" />
+                <StackPanel>
+                    <TextBlock Text="{Binding VersionLabel}" Style="{StaticResource Text.Label}" />
+                    <TextBlock Text="{Binding ChannelLabel}" Style="{StaticResource Text.Muted}" />
+                    <TextBlock Text="Local-first: no account, telemetry, or network access at startup." Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

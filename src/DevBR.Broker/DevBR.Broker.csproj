@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>DevBR.Broker</RootNamespace>
+    <AssemblyName>DevBR.Broker</AssemblyName>
+    <!-- asInvoker: the GUI elevates this process explicitly through UAC ("runas") only when needed. -->
+    <ApplicationManifest>..\..\build\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DevBR.Infrastructure\DevBR.Infrastructure.csproj" />
+    <ProjectReference Include="..\DevBR.Ipc\DevBR.Ipc.csproj" />
+  </ItemGroup>
+</Project>

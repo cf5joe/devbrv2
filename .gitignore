@@ -1,0 +1,10 @@
+bin/
+obj/
+artifacts/
+TestResults/
+.vs/
+.vscode/
+*.user
+*.suo
+*.devbr
+*.partial-*

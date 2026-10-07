@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UseWPF>true</UseWPF>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>DevBR.Tests</RootNamespace>
+    <NoWarn>$(NoWarn);WPF0001;CA1707</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DevBR.Domain\DevBR.Domain.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Application\DevBR.Application.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Archive\DevBR.Archive.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Ipc\DevBR.Ipc.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Infrastructure\DevBR.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.ArchiveWorker\DevBR.ArchiveWorker.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Broker\DevBR.Broker.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.App\DevBR.App.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>DevBR</AssemblyName>
+    <RootNamespace>DevBR.App</RootNamespace>
+    <ApplicationManifest>..\..\build\app.manifest</ApplicationManifest>
+    <!-- WPF0001: Application.ThemeMode (Fluent) is marked experimental. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DevBR.Application\DevBR.Application.csproj" />
+    <ProjectReference Include="..\DevBR.Infrastructure\DevBR.Infrastructure.csproj" />
+    <!-- Built alongside the GUI so DevBR.ArchiveWorker.exe and DevBR.Broker.exe land in the same folder. -->
+    <ProjectReference Include="..\DevBR.ArchiveWorker\DevBR.ArchiveWorker.csproj" />
+    <ProjectReference Include="..\DevBR.Broker\DevBR.Broker.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

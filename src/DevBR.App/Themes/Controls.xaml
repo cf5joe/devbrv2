@@ -1,0 +1,75 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:DevBR.App.Controls">
+
+    <Style TargetType="controls:InfoBar">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="AutomationProperties.LiveSetting" Value="Polite" />
+        <Setter Property="AutomationProperties.Name" Value="{Binding Title, RelativeSource={RelativeSource Self}}" />
+        <Setter Property="AutomationProperties.HelpText" Value="{Binding Message, RelativeSource={RelativeSource Self}}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="controls:InfoBar">
+                    <Border x:Name="Root" Background="{DynamicResource DevBR.SurfaceElevated}" BorderBrush="{DynamicResource DevBR.Border}"
+                            BorderThickness="1" CornerRadius="8" Padding="16,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="Icon" Text="&#xE946;" FontFamily="{StaticResource DevBR.IconFontFamily}" FontSize="16"
+                                       Foreground="{DynamicResource DevBR.AccentText}" Margin="0,2,12,0" VerticalAlignment="Top" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{TemplateBinding Title}" Style="{StaticResource Text.Label}" />
+                                <TextBlock Text="{TemplateBinding Message}" Margin="0,2,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Muted}">
+                                            <Style.Triggers>
+                                                <Trigger Property="Text" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </Trigger>
+                                                <Trigger Property="Text" Value="">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                            <ContentPresenter Grid.Column="2" Content="{TemplateBinding ActionContent}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                            <Button x:Name="Close" Grid.Column="3" Style="{StaticResource Button.Subtle}" Command="{TemplateBinding CloseCommand}"
+                                    AutomationProperties.Name="Dismiss" ToolTip="Dismiss" Margin="8,-4,-8,-4" VerticalAlignment="Top">
+                                <TextBlock Text="&#xE711;" Style="{StaticResource Text.Icon}" FontSize="12" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="CloseCommand" Value="{x:Null}">
+                            <Setter TargetName="Close" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="Severity" Value="Success">
+                            <Setter TargetName="Icon" Property="Text" Value="&#xE930;" />
+                            <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource DevBR.Success}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource DevBR.SuccessSubtle}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DevBR.Success}" />
+                        </Trigger>
+                        <Trigger Property="Severity" Value="Warning">
+                            <Setter TargetName="Icon" Property="Text" Value="&#xE7BA;" />
+                            <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource DevBR.Warning}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource DevBR.WarningSubtle}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DevBR.Warning}" />
+                        </Trigger>
+                        <Trigger Property="Severity" Value="Error">
+                            <Setter TargetName="Icon" Property="Text" Value="&#xEA39;" />
+                            <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource DevBR.Error}" />
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource DevBR.ErrorSubtle}" />
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource DevBR.Error}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

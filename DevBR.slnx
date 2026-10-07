@@ -1,0 +1,27 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DevBR.App/DevBR.App.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/DevBR.Application/DevBR.Application.csproj" />
+    <Project Path="src/DevBR.Archive/DevBR.Archive.csproj" />
+    <Project Path="src/DevBR.ArchiveWorker/DevBR.ArchiveWorker.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/DevBR.Broker/DevBR.Broker.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/DevBR.Domain/DevBR.Domain.csproj" />
+    <Project Path="src/DevBR.Infrastructure/DevBR.Infrastructure.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/DevBR.Ipc/DevBR.Ipc.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DevBR.Tests/DevBR.Tests.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+</Solution>

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DevBR.Archive</RootNamespace>
+    <!-- Ship only the x64 native library (see ItemGroup below), not the package's x86 copy. -->
+    <ExcludeSevenZipAssemblies>true</ExcludeSevenZipAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DevBR.Application\DevBR.Application.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpSevenZip" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(PkgSharpSevenZip)\build\x64\7z.dll" Link="x64\7z.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+</Project>

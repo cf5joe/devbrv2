@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- WinExe: runs without a console window; output is redirected by the GUI. -->
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>DevBR.ArchiveWorker</RootNamespace>
+    <AssemblyName>DevBR.ArchiveWorker</AssemblyName>
+    <ApplicationManifest>..\..\build\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DevBR.Archive\DevBR.Archive.csproj" />
+    <ProjectReference Include="..\DevBR.Infrastructure\DevBR.Infrastructure.csproj" />
+    <ProjectReference Include="..\DevBR.Ipc\DevBR.Ipc.csproj" />
+  </ItemGroup>
+</Project>
