@@ -14,11 +14,13 @@ namespace DevBR.App.ViewModels;
 public sealed partial class MainViewModel : ObservableObject
 {
     private readonly ActivityStore _activity;
+    private readonly MachineContext _machine;
 
     public MainViewModel(
         Navigator navigator,
         WorkerProcessHost workerHost,
         ActivityStore activity,
+        MachineContext machine,
         OverviewViewModel overview,
         DiscoveryViewModel discovery,
         BackupViewModel backup,
@@ -27,6 +29,8 @@ public sealed partial class MainViewModel : ObservableObject
         SettingsViewModel settings)
     {
         _activity = activity;
+        _machine = machine;
+        _machine.Changed += (_, _) => { OnPropertyChanged(nameof(IsSimulated)); OnPropertyChanged(nameof(MachineLabel)); };
         Pages = [overview, discovery, backup, restore, activityPage, settings];
         SelectedPage = overview;
 
@@ -56,6 +60,10 @@ public sealed partial class MainViewModel : ObservableObject
     public bool IsDevelopmentBuild => BuildInfo.IsDevelopmentBuild;
 
     public string ElevationLabel => BuildInfo.IsElevated ? "Running as administrator" : "Standard user";
+
+    public bool IsSimulated => _machine.Current.IsSimulated;
+
+    public string MachineLabel => _machine.Label;
 
     partial void OnSelectedPageChanged(PageViewModel value) => _ = value.OnNavigatedToAsync();
 

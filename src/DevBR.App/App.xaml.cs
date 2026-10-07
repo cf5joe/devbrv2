@@ -6,6 +6,7 @@ using DevBR.App.ViewModels;
 using DevBR.App.Views;
 using DevBR.Application.Archive;
 using DevBR.Application.Settings;
+using DevBR.Discovery;
 using DevBR.Domain;
 using DevBR.Infrastructure;
 using DevBR.Infrastructure.Logging;
@@ -50,6 +51,7 @@ public partial class App
 
             await _host.Services.GetRequiredService<StateDatabase>().InitializeAsync(CancellationToken.None);
             _host.Services.GetRequiredService<ThemeService>().Initialize();
+            ApplyCommandLine(e.Args, _host.Services.GetRequiredService<MachineContext>());
 
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
@@ -99,6 +101,10 @@ public partial class App
         builder.Services.AddSingleton<WorkerArchiveService>();
         builder.Services.AddSingleton<IArchiveService>(sp => sp.GetRequiredService<WorkerArchiveService>());
         builder.Services.AddSingleton<BrokerLauncher>();
+        builder.Services.AddSingleton<CatalogStore>();
+        builder.Services.AddSingleton(sp => new DiscoveryEngine(DiscoveryEngine.DefaultProviders(), sp.GetRequiredService<ILogger<DiscoveryEngine>>()));
+        builder.Services.AddSingleton<MachineContext>();
+        builder.Services.AddSingleton<CatalogSession>();
 
         // Presentation
         builder.Services.AddSingleton<ThemeService>();
@@ -115,6 +121,30 @@ public partial class App
         builder.Services.AddSingleton<MainWindow>();
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// Development builds accept <c>--machine &lt;folder&gt;</c> to start on a simulated machine, or
+    /// <c>--machine sample</c> / <c>--machine clean</c> to create and open a sample one.
+    /// </summary>
+    private static void ApplyCommandLine(string[] args, MachineContext machine)
+    {
+        var index = Array.FindIndex(args, a => a.Equals("--machine", StringComparison.OrdinalIgnoreCase));
+        if (index < 0 || index + 1 >= args.Length || !BuildInfo.IsDevelopmentBuild)
+        {
+            return;
+        }
+
+        var value = args[index + 1];
+        var folder = value.ToLowerInvariant() switch
+        {
+            "sample" => machine.CreateSampleWorkstation(),
+            "clean" => machine.CreateCleanTarget(),
+            _ => value,
+        };
+
+        machine.UseSimulated(folder);
+        Log.Information("Started on simulated machine {Folder}.", folder);
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

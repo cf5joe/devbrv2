@@ -30,6 +30,7 @@ public sealed partial class SettingsViewModel : PageViewModel
     private readonly WorkerArchiveService _worker;
     private readonly ArchiveSelfTest _selfTest;
     private readonly ActivityStore _activity;
+    private readonly MachineContext _machine;
     private bool _loading;
 
     public SettingsViewModel(
@@ -41,7 +42,8 @@ public sealed partial class SettingsViewModel : PageViewModel
         WorkerProcessHost workerHost,
         WorkerArchiveService worker,
         ArchiveSelfTest selfTest,
-        ActivityStore activity)
+        ActivityStore activity,
+        MachineContext machine)
     {
         _settings = settings;
         _theme = theme;
@@ -52,6 +54,8 @@ public sealed partial class SettingsViewModel : PageViewModel
         _worker = worker;
         _selfTest = selfTest;
         _activity = activity;
+        _machine = machine;
+        _machine.Changed += (_, _) => { OnPropertyChanged(nameof(MachineLabel)); OnPropertyChanged(nameof(IsSimulated)); };
 
         ThemeOptions =
         [
@@ -220,6 +224,67 @@ public sealed partial class SettingsViewModel : PageViewModel
         var failed = steps.Count(s => !s.Passed);
         SelfTestStatus = failed == 0 ? $"All {steps.Count} checks passed." : $"{failed} of {steps.Count} checks failed.";
         await _activity.AddAsync(failed == 0 ? EventSeverity.Information : EventSeverity.Error, "Diagnostics", $"Archive self-test: {SelfTestStatus}");
+    }
+
+    // --- Simulated machines (development builds) --------------------------------------------------
+
+    public string MachineLabel => _machine.Label;
+
+    public bool IsSimulated => _machine.Current.IsSimulated;
+
+    public string SimulationsFolder => _machine.SimulationsRoot;
+
+    [ObservableProperty]
+    public partial string? SimulationResult { get; set; }
+
+    [RelayCommand]
+    private async Task CreateSampleWorkstationAsync()
+        => await SwitchToAsync(() => _machine.CreateSampleWorkstation(), "sample developer workstation");
+
+    [RelayCommand]
+    private async Task CreateCleanTargetAsync()
+        => await SwitchToAsync(() => _machine.CreateCleanTarget(), "clean target computer");
+
+    [RelayCommand]
+    private async Task OpenSimulatedAsync()
+    {
+        Directory.CreateDirectory(_machine.SimulationsRoot);
+        var folder = _dialogs.PickFolder("Open a simulated machine folder (contains machine.json)", _machine.SimulationsRoot);
+        if (folder is null)
+        {
+            return;
+        }
+
+        if (!Simulation.SimulatedMachine.IsMachineFolder(folder))
+        {
+            SimulationResult = "That folder is not a simulated machine (machine.json is missing).";
+            return;
+        }
+
+        await SwitchToAsync(() => folder, "simulated machine");
+    }
+
+    [RelayCommand]
+    private async Task UseThisComputerAsync()
+    {
+        _machine.UseThisComputer();
+        SimulationResult = "Now looking at this computer.";
+        await _activity.AddAsync(EventSeverity.Information, "Simulation", "Switched back to this computer.");
+    }
+
+    private async Task SwitchToAsync(Func<string> prepare, string description)
+    {
+        try
+        {
+            var folder = await Task.Run(prepare);
+            _machine.UseSimulated(folder);
+            SimulationResult = $"Now looking at the {description} in {folder}. Run discovery to inventory it.";
+            await _activity.AddAsync(EventSeverity.Information, "Simulation", $"Switched to simulated machine {_machine.Label}.", folder);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException or InvalidOperationException)
+        {
+            SimulationResult = $"Could not open the simulated machine: {ex.Message}";
+        }
     }
 
     [RelayCommand]

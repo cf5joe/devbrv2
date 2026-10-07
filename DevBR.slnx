@@ -11,11 +11,17 @@
     <Project Path="src/DevBR.Broker/DevBR.Broker.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="src/DevBR.Discovery/DevBR.Discovery.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/DevBR.Domain/DevBR.Domain.csproj" />
     <Project Path="src/DevBR.Infrastructure/DevBR.Infrastructure.csproj">
       <Platform Project="x64" />
     </Project>
     <Project Path="src/DevBR.Ipc/DevBR.Ipc.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/DevBR.Simulation/DevBR.Simulation.csproj">
       <Platform Project="x64" />
     </Project>
   </Folder>

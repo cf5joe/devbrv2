@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DevBR.Application\DevBR.Application.csproj" />
     <ProjectReference Include="..\DevBR.Ipc\DevBR.Ipc.csproj" />
+    <ProjectReference Include="..\DevBR.Discovery\DevBR.Discovery.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" />

@@ -6,40 +6,393 @@
              xmlns:vm="clr-namespace:DevBR.App.ViewModels"
              xmlns:controls="clr-namespace:DevBR.App.Controls"
              mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:DiscoveryViewModel}">
+    <UserControl.Resources>
+        <DataTemplate x:Key="Chip" DataType="{x:Type vm:CountChip}">
+            <Border Style="{StaticResource Badge}" Margin="0,0,8,8" Padding="10,3">
+                <TextBlock Text="{Binding Text}" FontSize="12" />
+            </Border>
+        </DataTemplate>
+        <ItemsPanelTemplate x:Key="Wrap">
+            <WrapPanel />
+        </ItemsPanelTemplate>
+        <DataTemplate x:Key="LabeledValue" DataType="{x:Type vm:LabeledValue}">
+            <StackPanel Margin="0,0,0,8">
+                <TextBlock Text="{Binding Label}" Style="{StaticResource Text.Caption}" />
+                <TextBox Text="{Binding Value, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent" Padding="0" MinHeight="0"
+                         TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource DevBR.Text}" AutomationProperties.Name="{Binding Label}" />
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <StackPanel>
         <TextBlock Text="DISCOVERY" Style="{StaticResource Text.Overline}" />
-        <TextBlock Text="Discover this computer" Style="{StaticResource Text.PageTitle}" Margin="0,6,0,0" />
-        <TextBlock Style="{StaticResource Text.Lead}" Margin="0,10,0,0" MaxWidth="720" HorizontalAlignment="Left"
-                   Text="A comprehensive, reported search of the sources you can access. DevBR never launches programs it finds, bypasses permissions, or changes installed applications." />
+        <DockPanel Margin="0,6,0,0">
+            <Border DockPanel.Dock="Right" Style="{StaticResource Badge}" VerticalAlignment="Center" Background="{DynamicResource DevBR.WarningSubtle}"
+                    BorderBrush="{DynamicResource DevBR.Warning}" Visibility="{Binding IsSimulated, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE7EF;" Style="{StaticResource Text.Icon}" FontSize="12" Margin="0,0,6,0" />
+                    <TextBlock Text="Simulated machine" FontSize="12" />
+                </StackPanel>
+            </Border>
+            <TextBlock Text="Discover this computer" Style="{StaticResource Text.PageTitle}" />
+        </DockPanel>
+        <TextBlock Style="{StaticResource Text.Lead}" Margin="0,10,0,0" MaxWidth="760" HorizontalAlignment="Left"
+                   Text="A reported search of the sources this account can access. DevBR never launches programs it finds, never follows junctions, and never downloads cloud-only files." />
 
-        <controls:InfoBar Margin="0,24,0,0" Severity="Information" Title="{Binding ElevationTitle}" Message="{Binding ElevationDetail}" />
+        <!-- Scope -->
+        <Border Style="{StaticResource Card}" Margin="0,24,0,0">
+            <StackPanel>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding MachineLabel}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
+                    <TextBlock Text="Scan scope" Style="{StaticResource Text.SectionTitle}" />
+                </DockPanel>
 
-        <TextBlock Text="Scan scope" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,12" />
-        <ItemsControl ItemsSource="{Binding Scope}" Focusable="False">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type vm:ScopeItem}">
-                    <Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="20,16">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="{Binding Glyph}" Style="{StaticResource Text.Icon}" FontSize="20" Foreground="{DynamicResource DevBR.AccentText}"
-                                       VerticalAlignment="Top" Margin="0,2,16,0" />
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Label}" />
-                                <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Muted}" Margin="0,4,0,0" />
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="24" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <CheckBox IsChecked="{Binding ScanFixedDrives}"
+                                  Content="All fixed local drives" />
+                        <ItemsControl ItemsSource="{Binding Drives}" ItemsPanel="{StaticResource Wrap}" Margin="28,8,0,0" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource Badge}" Margin="0,0,8,8" Padding="10,3">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xEDA2;" Style="{StaticResource Text.Icon}" FontSize="12" Margin="0,0,6,0" />
+                                            <TextBlock Text="{Binding}" FontSize="12" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <CheckBox IsChecked="{Binding IncludeOtherUserProfiles}" Margin="0,12,0,0"
+                                  Content="Include other users' profiles" />
+                        <TextBlock Style="{StaticResource Text.Caption}" Margin="28,2,0,0"
+                                   Text="Off by default. Other people's private folders are skipped and listed in the coverage report." />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Additional folders" Style="{StaticResource Text.Label}" />
+                        <TextBlock Style="{StaticResource Text.Caption}" Margin="0,2,0,8"
+                                   Text="Add removable or network folders, or folders outside the fixed drives." />
+                        <ItemsControl ItemsSource="{Binding ExtraRoots}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Subtle}" ToolTip="Remove"
+                                                Command="{Binding DataContext.RemoveRootCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                AutomationProperties.Name="{Binding StringFormat='Remove {0}'}">
+                                            <TextBlock Text="&#xE711;" Style="{StaticResource Text.Icon}" FontSize="11" />
+                                        </Button>
+                                        <TextBlock Text="{Binding}" Style="{StaticResource Text.Body}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Style="{StaticResource Button.Secondary}" Command="{Binding AddRootCommand}" HorizontalAlignment="Left" Margin="0,4,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE710;" Style="{StaticResource Text.Icon}" FontSize="12" Margin="0,0,8,0" />
+                                <TextBlock Text="Add folder…" />
                             </StackPanel>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                        </Button>
+                    </StackPanel>
+                </Grid>
 
-        <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
-            <Button Style="{StaticResource Button.Primary}" Command="{Binding StartDiscoveryCommand}" Content="Start discovery" />
-            <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="16,0,0,0"
-                       Text="The discovery engine is not included in this build yet." />
+                <controls:InfoBar Margin="0,16,0,0" Severity="Information" Title="{Binding ElevationTitle}" Message="{Binding ElevationDetail}" />
+
+                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                    <Button Style="{StaticResource Button.Primary}" Command="{Binding StartCommand}" AutomationProperties.Name="Start discovery">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE721;" Style="{StaticResource Text.Icon}" Foreground="{DynamicResource DevBR.AccentForeground}" Margin="0,0,10,0" />
+                            <TextBlock Text="{Binding HasResults, Converter={x:Static vm:DiscoveryLabels.StartLabel}}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Button.Secondary}" Command="{Binding CancelCommand}" Content="Cancel" Margin="12,0,0,0"
+                            Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Live progress: indeterminate, with counts; never a fabricated percentage -->
+        <Border Style="{StaticResource Card}" Margin="0,16,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <TextBlock Text="Discovering…" Style="{StaticResource Text.SectionTitle}" />
+                <ProgressBar IsIndeterminate="True" Height="4" Margin="0,12,0,12" AutomationProperties.Name="Discovery in progress" />
+                <TextBlock Text="{Binding ScanStatus}" Style="{StaticResource Text.Body}" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock Text="{Binding CurrentScope}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" Margin="0,4,0,12" />
+                <TextBlock Text="Found so far" Style="{StaticResource Text.Caption}" Margin="0,0,0,6" />
+                <ItemsControl ItemsSource="{Binding LiveCategories}" ItemTemplate="{StaticResource Chip}" ItemsPanel="{StaticResource Wrap}" Focusable="False" />
+                <TextBlock Text="By drive" Style="{StaticResource Text.Caption}" Margin="0,4,0,6" />
+                <ItemsControl ItemsSource="{Binding LiveDrives}" ItemTemplate="{StaticResource Chip}" ItemsPanel="{StaticResource Wrap}" Focusable="False" />
+            </StackPanel>
+        </Border>
+
+        <TextBlock Text="{Binding ScanStatus}" Style="{StaticResource Text.Body}" Margin="0,12,0,0"
+                   Visibility="{Binding HasResults, Converter={StaticResource HasNoValue}}" />
+
+        <!-- Results -->
+        <StackPanel Margin="0,24,0,0" Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
+            <controls:InfoBar Severity="Warning" Title="These results are incomplete" Margin="0,0,0,12"
+                              Message="Discovery was cancelled before every source finished. Run it again for a complete inventory."
+                              Visibility="{Binding IsPartial, Converter={StaticResource BoolToVisibility}}" />
+            <TextBlock Text="{Binding ResultSummary}" Style="{StaticResource Text.Muted}" Margin="0,0,0,12" />
+
+            <TabControl SelectedIndex="{Binding Tab, Converter={StaticResource EnumIndex}}" Background="Transparent" BorderThickness="0" Padding="0,12,0,0">
+                <!-- Inventory -->
+                <TabItem Header="Inventory">
+                    <StackPanel>
+                        <WrapPanel Margin="0,0,0,12">
+                            <StackPanel Margin="0,0,12,8">
+                                <TextBlock Text="Search" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" />
+                                <Grid Width="250">
+                                    <TextBox x:Name="Search" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}" Padding="30,6,8,6"
+                                             AutomationProperties.Name="Search inventory" ToolTip="Search names, versions, publishers and paths" />
+                                    <TextBlock Text="&#xE721;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.TextMuted}"
+                                               Margin="11,0,0,0" HorizontalAlignment="Left" IsHitTestVisible="False" />
+                                    <TextBlock Text="Name, version, publisher or path" Foreground="{DynamicResource DevBR.TextMuted}" FontSize="13" Margin="31,0,0,0"
+                                               VerticalAlignment="Center" IsHitTestVisible="False" Visibility="{Binding SearchText, Converter={StaticResource HasNoValue}}" />
+                                </Grid>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,8">
+                                <TextBlock Text="Category" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding CategoryFilters}" SelectedItem="{Binding CategoryFilter}" Width="170" AutomationProperties.Name="Category filter" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,8">
+                                <TextBlock Text="Scope" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding ScopeFilters}" SelectedItem="{Binding ScopeFilter}" Width="115" AutomationProperties.Name="Scope filter" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,8">
+                                <TextBlock Text="Sort by" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SortBy}" Width="115" AutomationProperties.Name="Sort by" />
+                            </StackPanel>
+                            <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,8">
+                                <TextBlock Text="{Binding VisibleCount, StringFormat='{}{0:N0} shown'}" Style="{StaticResource Text.Caption}" Margin="0,0,0,2" />
+                                <Button Style="{StaticResource Button.Subtle}" Content="Clear filters" Command="{Binding ClearFiltersCommand}" Margin="-10,0,0,0" />
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <Grid Height="540">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="300" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Virtualized list with a fixed column layout (header row + templated rows). -->
+                            <Border BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource DevBR.Surface}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="0,0,0,1" Padding="16,8,30,8">
+                                        <Grid TextElement.FontSize="12" TextElement.FontWeight="SemiBold" TextElement.Foreground="{DynamicResource DevBR.TextMuted}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="90" />
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="100" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Name" />
+                                            <TextBlock Grid.Column="1" Text="Version" />
+                                            <TextBlock Grid.Column="2" Text="Scope" />
+                                            <TextBlock Grid.Column="3" Text="Status" />
+                                        </Grid>
+                                    </Border>
+                                    <ListBox ItemsSource="{Binding InventoryView}" SelectedItem="{Binding SelectedItem}" AutomationProperties.Name="Inventory"
+                                             VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" Background="Transparent" BorderThickness="0" Padding="4">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                                <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                <Setter Property="Padding" Value="12,6" />
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:InventoryRow}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="90" />
+                                                <ColumnDefinition Width="80" />
+                                                <ColumnDefinition Width="100" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Margin="0,0,12,0">
+                                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding Subtitle}" Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Version}" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding Scope}" FontSize="13" VerticalAlignment="Center" />
+                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding Status}">
+                                                        <TextBlock x:Name="Icon" Text="&#xE9CE;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.TextMuted}" Margin="0,0,6,0" />
+                                                        <TextBlock Text="{Binding StatusShort}" FontSize="12" />
+                                                    </StackPanel>
+                                                </Grid>
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding IsConfirmed}" Value="True">
+                                                        <Setter TargetName="Icon" Property="Text" Value="&#xE930;" />
+                                                        <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource DevBR.Success}" />
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Details -->
+                            <Border Grid.Column="2" Style="{StaticResource Card}" Padding="20,16">
+                                <Grid>
+                                    <TextBlock Text="Select a record to see its evidence, locations and migration support." Style="{StaticResource Text.Muted}"
+                                               Visibility="{Binding SelectedItem, Converter={StaticResource HasNoValue}}" />
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding SelectedItem, Converter={StaticResource HasValue}}">
+                                        <StackPanel DataContext="{Binding SelectedItem}" d:DataContext="{d:DesignInstance vm:InventoryRow}">
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource Text.SectionTitle}" />
+                                            <TextBlock Style="{StaticResource Text.Muted}" Margin="0,2,0,0">
+                                                <Run Text="{Binding Category, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Version, Mode=OneWay}" />
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding Publisher}" Style="{StaticResource Text.Caption}" Visibility="{Binding Publisher, Converter={StaticResource HasValue}}" />
+                                            <WrapPanel Margin="0,12,0,0">
+                                                <Border Style="{StaticResource Badge}" Margin="0,0,6,6"><TextBlock Text="{Binding Status}" FontSize="12" /></Border>
+                                                <Border Style="{StaticResource Badge}" Margin="0,0,6,6"><TextBlock Text="{Binding Confidence, StringFormat='Confidence: {0}'}" FontSize="12" /></Border>
+                                                <Border Style="{StaticResource Badge}" Margin="0,0,6,6"><TextBlock Text="{Binding Scope, StringFormat='Scope: {0}'}" FontSize="12" /></Border>
+                                            </WrapPanel>
+                                            <TextBlock Text="Migration support" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+                                            <TextBlock Text="{Binding MigrationSupport}" Style="{StaticResource Text.Body}" />
+                                            <TextBlock Text="Locations" Style="{StaticResource Text.Label}" Margin="0,16,0,4" Visibility="{Binding Locations, Converter={StaticResource HasValue}}" />
+                                            <ItemsControl ItemsSource="{Binding Locations}" Focusable="False">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBox Text="{Binding Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent" Padding="0" MinHeight="0" TextWrapping="Wrap"
+                                                                 FontSize="13" Foreground="{DynamicResource DevBR.Text}" Margin="0,0,0,4" AutomationProperties.Name="Location" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="Evidence" Style="{StaticResource Text.Label}" Margin="0,12,0,4" />
+                                            <ItemsControl ItemsSource="{Binding Evidence}" ItemTemplate="{StaticResource LabeledValue}" Focusable="False" />
+                                            <TextBlock Text="Details" Style="{StaticResource Text.Label}" Margin="0,8,0,4" Visibility="{Binding Properties, Converter={StaticResource HasValue}}" />
+                                            <ItemsControl ItemsSource="{Binding Properties}" ItemTemplate="{StaticResource LabeledValue}" Focusable="False" />
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </TabItem>
+
+                <!-- Backup selection -->
+                <TabItem Header="Backup selection">
+                    <StackPanel>
+                        <controls:InfoBar Severity="Warning" Title="Encryption will be required" Margin="0,0,0,12"
+                                          Message="Your selection includes credentials or content with recognized secrets. The backup must be encrypted with a password."
+                                          Visibility="{Binding SelectionRequiresEncryption, Converter={StaticResource BoolToVisibility}}" />
+                        <DockPanel Margin="0,0,0,16">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Reset to defaults" Command="{Binding ResetSelectionCommand}" />
+                            <StackPanel>
+                                <TextBlock Text="{Binding SelectionSummary}" Style="{StaticResource Text.Label}" />
+                                <TextBlock Style="{StaticResource Text.Caption}" Margin="0,2,0,0"
+                                           Text="Defaults: the inventory and non-secret machine environment. Repositories and personal files are never selected automatically." />
+                            </StackPanel>
+                        </DockPanel>
+
+                        <ItemsControl ItemsSource="{Binding ArtifactGroups}" Focusable="False" AutomationProperties.Name="Backup items">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:ArtifactGroup}">
+                                    <StackPanel Margin="0,0,0,16">
+                                        <TextBlock Text="{Binding Owner}" Style="{StaticResource Text.SectionTitle}" FontSize="15" Margin="0,0,0,8" />
+                                        <Border Style="{StaticResource Card}" Padding="0">
+                                            <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:ArtifactRow}">
+                                                        <Border BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="0,0,0,1" Padding="16,12">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}" VerticalAlignment="Top" Margin="0,1,8,0"
+                                                                          AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding Description}" />
+                                                                <StackPanel Grid.Column="1">
+                                                                    <WrapPanel>
+                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" Margin="0,0,10,4" />
+                                                                        <Border Style="{StaticResource Badge}" Margin="0,0,6,4" Padding="8,1"><TextBlock Text="{Binding Kind}" FontSize="11" /></Border>
+                                                                        <Border Style="{StaticResource Badge}" Margin="0,0,6,4" Padding="8,1" Visibility="{Binding IsDefault, Converter={StaticResource BoolToVisibility}}"
+                                                                                Background="{DynamicResource DevBR.AccentSubtle}"><TextBlock Text="Default" FontSize="11" /></Border>
+                                                                        <Border x:Name="Sensitivity" Style="{StaticResource Badge}" Margin="0,0,6,4" Padding="8,1" Visibility="{Binding SensitivityLabel, Converter={StaticResource HasValue}}">
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <TextBlock Text="&#xE72E;" Style="{StaticResource Text.Icon}" FontSize="10" Margin="0,0,4,0" />
+                                                                                <TextBlock Text="{Binding SensitivityLabel}" FontSize="11" />
+                                                                            </StackPanel>
+                                                                        </Border>
+                                                                        <Border Style="{StaticResource Badge}" Margin="0,0,6,4" Padding="8,1" Visibility="{Binding EligibilityLabel, Converter={StaticResource HasValue}}">
+                                                                            <TextBlock Text="{Binding EligibilityLabel}" FontSize="11" />
+                                                                        </Border>
+                                                                    </WrapPanel>
+                                                                    <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Muted}" FontSize="13" />
+                                                                    <TextBlock Text="{Binding Excluded}" Style="{StaticResource Text.Caption}" Margin="0,4,0,0" Visibility="{Binding Excluded, Converter={StaticResource HasValue}}" />
+                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="2" Text="{Binding Size}" Style="{StaticResource Text.Caption}" Margin="12,2,0,0" />
+                                                            </Grid>
+                                                        </Border>
+                                                        <DataTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSensitive}" Value="True">
+                                                                <Setter TargetName="Sensitivity" Property="Background" Value="{DynamicResource DevBR.WarningSubtle}" />
+                                                                <Setter TargetName="Sensitivity" Property="BorderBrush" Value="{DynamicResource DevBR.Warning}" />
+                                                            </DataTrigger>
+                                                        </DataTemplate.Triggers>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Border>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </TabItem>
+
+                <!-- Coverage -->
+                <TabItem Header="Coverage">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Text.Muted}" Margin="0,0,0,12"
+                                   Text="Every source that was searched, every scope that was skipped and why, and every location that could not be read." />
+                        <ItemsControl ItemsSource="{Binding Coverage}" Focusable="False" AutomationProperties.Name="Coverage report">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:CoverageRow}">
+                                    <Border Style="{StaticResource Card}" Padding="16,12" Margin="0,0,0,8">
+                                        <Expander IsEnabled="{Binding HasDetails}">
+                                            <Expander.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Source}" Style="{StaticResource Text.Label}" />
+                                                    <TextBlock Style="{StaticResource Text.Caption}">
+                                                        <Run Text="{Binding Counts, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Summary, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Expander.Header>
+                                            <StackPanel Margin="0,12,0,0">
+                                                <ItemsControl ItemsSource="{Binding Errors}" Focusable="False">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <controls:InfoBar Severity="Error" Title="{Binding}" Margin="0,0,0,8" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <TextBlock Text="Not entered" Style="{StaticResource Text.Label}" FontSize="13" Margin="0,0,0,6" Visibility="{Binding Excluded, Converter={StaticResource HasValue}}" />
+                                                <ItemsControl ItemsSource="{Binding Excluded}" ItemTemplate="{StaticResource LabeledValue}" Focusable="False" />
+                                                <TextBlock Text="Could not be read" Style="{StaticResource Text.Label}" FontSize="13" Margin="0,8,0,6" Visibility="{Binding Inaccessible, Converter={StaticResource HasValue}}" />
+                                                <ItemsControl ItemsSource="{Binding Inaccessible}" ItemTemplate="{StaticResource LabeledValue}" Focusable="False" />
+                                            </StackPanel>
+                                        </Expander>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
         </StackPanel>
     </StackPanel>
 </UserControl>

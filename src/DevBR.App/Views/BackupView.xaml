@@ -13,9 +13,48 @@
                    Text="A backup is one .devbr file containing exactly what you select, verified against its own hashes before it is saved." />
 
         <controls:InfoBar Margin="0,24,0,0" Severity="Information" Title="Run discovery first"
-                          Message="The backup wizard starts from a discovery inventory of this computer." />
+                          Message="The backup wizard starts from a discovery inventory of this computer."
+                          Visibility="{Binding HasDiscovery, Converter={StaticResource HasNoValue}}">
+            <controls:InfoBar.ActionContent>
+                <Button Style="{StaticResource Button.Secondary}" Content="Go to Discovery" Command="{Binding GoToDiscoveryCommand}" />
+            </controls:InfoBar.ActionContent>
+        </controls:InfoBar>
 
-        <ItemsControl ItemsSource="{Binding Steps}" Margin="0,24,0,0" Focusable="False" AutomationProperties.Name="Backup steps">
+        <Border Style="{StaticResource Card}" Margin="0,24,0,0" Visibility="{Binding HasDiscovery, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Button.Secondary}" Content="Review selection" Command="{Binding ReviewSelectionCommand}" VerticalAlignment="Top" />
+                    <StackPanel>
+                        <TextBlock Text="Your selection" Style="{StaticResource Text.SectionTitle}" />
+                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Text.Muted}" Margin="0,2,0,0" />
+                    </StackPanel>
+                </DockPanel>
+                <controls:InfoBar Severity="Warning" Title="This backup must be encrypted" Margin="0,12,0,0"
+                                  Message="The selection includes credentials or recognized secrets."
+                                  Visibility="{Binding RequiresEncryption, Converter={StaticResource BoolToVisibility}}" />
+                <ItemsControl ItemsSource="{Binding Selected}" Margin="0,12,0,0" Focusable="False" AutomationProperties.Name="Selected items">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:SelectedItemSummary}">
+                            <StackPanel Orientation="Horizontal" Margin="0,3">
+                                <TextBlock Text="&#xE73E;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,10,0" />
+                                <TextBlock Text="{Binding Owner}" Style="{StaticResource Text.Muted}" Width="170" />
+                                <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" />
+                                <TextBlock Text="{Binding Badge, StringFormat=' · {0}'}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
+                                           Visibility="{Binding Badge, Converter={StaticResource HasValue}}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                    <Button Style="{StaticResource Button.Primary}" Content="Continue to backup" IsEnabled="False" />
+                    <TextBlock Style="{StaticResource Text.Caption}" VerticalAlignment="Center" Margin="16,0,0,0"
+                               Text="Backup capture is not included in this build yet." />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <TextBlock Text="Steps" Style="{StaticResource Text.SectionTitle}" Margin="0,28,0,12" />
+        <ItemsControl ItemsSource="{Binding Steps}" Focusable="False" AutomationProperties.Name="Backup steps">
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:WizardStep}">
                     <Grid Margin="0,0,0,4">

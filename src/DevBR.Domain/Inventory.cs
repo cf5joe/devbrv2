@@ -16,6 +16,7 @@ public enum InventoryCategory
     SystemFact,
     Configuration,
     CustomContent,
+    Package,
 }
 
 public enum InstallScope
@@ -57,7 +58,9 @@ public sealed record InventoryItem(
     IReadOnlyList<DiscoveryEvidence> Evidence,
     Confidence Confidence,
     DetectionStatus Status,
-    string? AdapterId);
+    string? AdapterId,
+    string? ToolId = null,
+    IReadOnlyDictionary<string, string>? Properties = null);
 
 public sealed record ExcludedScope(string Path, string Reason);
 

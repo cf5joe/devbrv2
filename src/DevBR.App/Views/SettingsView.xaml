@@ -169,6 +169,29 @@
             </StackPanel>
         </Border>
 
+        <!-- Simulated machines (development builds only) -->
+        <StackPanel Visibility="{Binding IsDevelopmentBuild, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="Simulated machines" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,12" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Text.Muted}"
+                               Text="Point DevBR at a simulated computer: a folder holding a fake drive layout, registry and user profile. Use it to try discovery on a realistic developer workstation, or as a clean restore target, without a second PC." />
+                    <TextBlock Style="{StaticResource Text.Body}" Margin="0,12,0,0">
+                        <Run Text="Currently looking at: " /><Run Text="{Binding MachineLabel, Mode=OneWay}" FontWeight="SemiBold" />
+                    </TextBlock>
+                    <WrapPanel Margin="0,16,0,0">
+                        <Button Style="{StaticResource Button.Secondary}" Content="Create sample workstation" Command="{Binding CreateSampleWorkstationCommand}" Margin="0,0,8,8" />
+                        <Button Style="{StaticResource Button.Secondary}" Content="Create clean target computer" Command="{Binding CreateCleanTargetCommand}" Margin="0,0,8,8" />
+                        <Button Style="{StaticResource Button.Secondary}" Content="Open simulated machine…" Command="{Binding OpenSimulatedCommand}" Margin="0,0,8,8" />
+                        <Button Style="{StaticResource Button.Secondary}" Content="Use this computer" Command="{Binding UseThisComputerCommand}" Margin="0,0,8,8"
+                                Visibility="{Binding IsSimulated, Converter={StaticResource BoolToVisibility}}" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding SimulationResult}" Style="{StaticResource Text.Body}" Margin="0,4,0,0" Visibility="{Binding SimulationResult, Converter={StaticResource HasValue}}" />
+                    <TextBlock Text="{Binding SimulationsFolder, StringFormat='Simulations are stored in {0}'}" Style="{StaticResource Text.Caption}" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
         <!-- About -->
         <TextBlock Text="About" Style="{StaticResource Text.SectionTitle}" Margin="0,32,0,12" />
         <Border Style="{StaticResource Card}">

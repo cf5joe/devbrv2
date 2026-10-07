@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:DevBR.App.ViewModels"
              xmlns:views="clr-namespace:DevBR.App.Views"
+             xmlns:controls="clr-namespace:DevBR.App.Controls"
              ThemeMode="Dark"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
@@ -11,6 +12,10 @@
                 <ResourceDictionary Source="Themes/Styles.xaml" />
                 <ResourceDictionary Source="Themes/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <controls:HasValueToVisibilityConverter x:Key="HasValue" />
+            <controls:HasValueToVisibilityConverter x:Key="HasNoValue" Invert="True" />
+            <controls:EnumIndexConverter x:Key="EnumIndex" />
 
             <DataTemplate DataType="{x:Type vm:OverviewViewModel}"><views:OverviewView /></DataTemplate>
             <DataTemplate DataType="{x:Type vm:DiscoveryViewModel}"><views:DiscoveryView /></DataTemplate>

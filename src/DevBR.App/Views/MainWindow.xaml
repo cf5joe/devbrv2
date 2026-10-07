@@ -47,6 +47,14 @@
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="8,16,0,0">
+                    <Border Style="{StaticResource Badge}" Visibility="{Binding IsSimulated, Converter={StaticResource BoolToVisibility}}"
+                            Background="{DynamicResource DevBR.AccentSubtle}" BorderBrush="{DynamicResource DevBR.Accent}" Margin="0,0,0,8"
+                            ToolTip="{Binding MachineLabel}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE7EF;" Style="{StaticResource Text.Icon}" FontSize="11" Margin="0,0,6,0" />
+                            <TextBlock Text="Simulated machine" FontSize="12" />
+                        </StackPanel>
+                    </Border>
                     <Border Style="{StaticResource Badge}" Visibility="{Binding IsDevelopmentBuild, Converter={StaticResource BoolToVisibility}}"
                             Background="{DynamicResource DevBR.WarningSubtle}" BorderBrush="{DynamicResource DevBR.Warning}" Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal">

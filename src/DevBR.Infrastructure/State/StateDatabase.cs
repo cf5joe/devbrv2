@@ -43,6 +43,33 @@ public sealed class StateDatabase(AppPaths paths, ILogger<StateDatabase> logger)
             PRIMARY KEY (job_id, operation_id)
         );
         """,
+        """
+        -- Discovery catalog: one snapshot per run, kept per machine (real or simulated).
+        CREATE TABLE discovery_runs (
+            id             TEXT    PRIMARY KEY,
+            machine_key    TEXT    NOT NULL,
+            started_utc    TEXT    NOT NULL,
+            completed_utc  TEXT    NOT NULL,
+            cancelled      INTEGER NOT NULL,
+            item_count     INTEGER NOT NULL,
+            artifact_count INTEGER NOT NULL,
+            snapshot_json  TEXT    NOT NULL
+        );
+        CREATE INDEX ix_discovery_runs_machine ON discovery_runs (machine_key, completed_utc);
+
+        -- The user's backup selection survives new discovery runs because artifact ids are stable.
+        CREATE TABLE backup_selection (
+            machine_key TEXT    NOT NULL,
+            artifact_id TEXT    NOT NULL,
+            selected    INTEGER NOT NULL,
+            PRIMARY KEY (machine_key, artifact_id)
+        );
+
+        CREATE TABLE discovery_preferences (
+            machine_key   TEXT PRIMARY KEY,
+            preferences   TEXT NOT NULL
+        );
+        """,
     ];
 
     public string ConnectionString { get; } = new SqliteConnectionStringBuilder

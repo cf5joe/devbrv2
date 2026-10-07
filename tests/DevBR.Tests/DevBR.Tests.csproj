@@ -16,6 +16,8 @@
     <ProjectReference Include="..\..\src\DevBR.ArchiveWorker\DevBR.ArchiveWorker.csproj" />
     <ProjectReference Include="..\..\src\DevBR.Broker\DevBR.Broker.csproj" />
     <ProjectReference Include="..\..\src\DevBR.App\DevBR.App.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Discovery\DevBR.Discovery.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Simulation\DevBR.Simulation.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

@@ -19,6 +19,10 @@ public enum ArtifactKind
     Modules,
     Repository,
     CustomFiles,
+    Commands,
+    Rules,
+    Credentials,
+    Assets,
 }
 
 public enum Sensitivity
@@ -72,7 +76,11 @@ public sealed record MigrationArtifact(
     BackupEligibility Eligibility,
     RestoreCapability RestoreCapabilities,
     IReadOnlyList<string> Dependencies,
-    bool SelectedByDefault);
+    bool SelectedByDefault,
+    string? Description = null,
+    IReadOnlyList<string>? ExcludedContent = null,
+    string? InventoryItemId = null,
+    long? EstimatedBytes = null);
 
 public enum PathMappingOrigin
 {

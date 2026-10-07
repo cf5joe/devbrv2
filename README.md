@@ -4,8 +4,9 @@ Portable Windows 11 x64 application that discovers a developer's environment, cr
 backup, and restores supported configuration and personal development assets on another computer.
 The full product plan is in [devbr-plan.md](devbr-plan.md).
 
-**Status:** Phase 1 (foundation and portable desktop shell) is implemented. Discovery, backup
-capture, restore planning and execution follow in Phases 2–5.
+**Status:** Phases 1 (foundation and portable shell) and 2 (discovery and migration catalog) are
+implemented. Backup capture, restore planning and execution follow in Phases 3–5. Discovery can run
+against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md).
 
 ## Solution layout
 
@@ -13,7 +14,9 @@ capture, restore planning and execution follow in Phases 2–5.
 |---|---|
 | `src/DevBR.Domain` | Domain models from the plan (inventory, artifacts, manifest, restore operations, events) |
 | `src/DevBR.Application` | Contracts: discovery providers, migration adapters, archive service, restore executor, settings |
-| `src/DevBR.Infrastructure` | App paths, settings, SQLite state and activity, logging, worker host, broker launcher |
+| `src/DevBR.Discovery` | Discovery engine, providers (registry, Store, App Paths, Start menu, PATH, package managers, environment, filesystem), 15 tool adapters, known-tool catalog |
+| `src/DevBR.Simulation` | Fixture-backed simulated machines and the sample workstation / clean target |
+| `src/DevBR.Infrastructure` | App paths, settings, SQLite state, activity and discovery catalog, logging, real Windows machine, worker host, broker launcher |
 | `src/DevBR.Ipc` | Versioned named-pipe protocol: framing, ACLs, OS peer verification, handshake, allow-listed dispatch |
 | `src/DevBR.Archive` | 7z (LZMA2, non-solid, AES-256 + header encryption) via SharpSevenZip; safe extraction |
 | `src/DevBR.ArchiveWorker` | Unelevated worker process; the only process that loads the native 7-Zip library |

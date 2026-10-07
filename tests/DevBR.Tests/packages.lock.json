@@ -1,7 +1,7 @@
 {
   "version": 2,
   "dependencies": {
-    "net10.0-windows7.0": {
+    "net10.0-windows10.0.19041": {
       "Microsoft.NET.Test.Sdk": {
         "type": "Direct",
         "requested": "[18.10.1, )",
@@ -460,7 +460,9 @@
           "DevBR.Application": "[0.1.0, )",
           "DevBR.ArchiveWorker": "[0.1.0, )",
           "DevBR.Broker": "[0.1.0, )",
+          "DevBR.Discovery": "[0.1.0, )",
           "DevBR.Infrastructure": "[0.1.0, )",
+          "DevBR.Simulation": "[0.1.0, )",
           "Microsoft.Extensions.Hosting": "[10.0.12, )",
           "Serilog.Extensions.Hosting": "[10.0.0, )"
         }
@@ -494,6 +496,14 @@
           "DevBR.Ipc": "[0.1.0, )"
         }
       },
+      "devbr.discovery": {
+        "type": "Project",
+        "dependencies": {
+          "DevBR.Application": "[0.1.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
+          "Tomlyn": "[2.10.1, )"
+        }
+      },
       "devbr.domain": {
         "type": "Project"
       },
@@ -501,6 +511,7 @@
         "type": "Project",
         "dependencies": {
           "DevBR.Application": "[0.1.0, )",
+          "DevBR.Discovery": "[0.1.0, )",
           "DevBR.Ipc": "[0.1.0, )",
           "Microsoft.Data.Sqlite": "[10.0.12, )",
           "Microsoft.Extensions.Hosting": "[10.0.12, )",
@@ -512,6 +523,12 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+        }
+      },
+      "devbr.simulation": {
+        "type": "Project",
+        "dependencies": {
+          "DevBR.Application": "[0.1.0, )"
         }
       },
       "CommunityToolkit.Mvvm": {
@@ -597,9 +614,15 @@
         "requested": "[2.0.128, )",
         "resolved": "2.0.128",
         "contentHash": "/H0dJ+Otue55H4yzQgtPLBCSfgIY9hqnQwuQuWCZdwammIHVj5AaF0+77AAbKOACA8ISo8nZIhOMmKqsULOUUg=="
+      },
+      "Tomlyn": {
+        "type": "CentralTransitive",
+        "requested": "[2.10.1, )",
+        "resolved": "2.10.1",
+        "contentHash": "ykjOY3IpYmC4SpPcAZRTl/w2jTmhPMDydHq8xcV7tTBAQ22nKBsOkPqauIrZlMjHm03cmKfV23UOPscKp+J4Og=="
       }
     },
-    "net10.0-windows7.0/win-x64": {
+    "net10.0-windows10.0.19041/win-x64": {
       "Microsoft.Win32.Registry": {
         "type": "Transitive",
         "resolved": "5.0.0",
