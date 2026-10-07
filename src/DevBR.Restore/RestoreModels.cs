@@ -34,7 +34,9 @@ public sealed record PlannedOperation(
     PackageRecipe? Recipe,
     MergePreview? Merge,
     bool Enabled,
-    IReadOnlyList<ConflictDecision> AllowedDecisions);
+    IReadOnlyList<ConflictDecision> AllowedDecisions,
+    string? Value = null,
+    bool Expandable = false);
 
 public sealed record ReinstallGuidance(string Name, string? SourceVersion, string Hint);
 
@@ -46,7 +48,8 @@ public sealed record RestorePreflight(
     IReadOnlyList<PathRewrite> Rewrites,
     IReadOnlyList<McpServerInfo> McpServers,
     IReadOnlyList<ReinstallGuidance> Reinstall,
-    IReadOnlySet<string> BlockedArtifacts)
+    IReadOnlySet<string> BlockedArtifacts,
+    PathMapper Mapper)
 {
     public IReadOnlyList<PreflightFinding> Findings => Plan.Findings;
 
@@ -71,9 +74,9 @@ public sealed record PlanApproval(Guid PlanId, string ApprovalHash, IReadOnlySet
         => preflight.Effects.Select(EffectKey).ToHashSet(StringComparer.Ordinal);
 
     public static string EffectKey(PlannedOperation op)
-        => string.Join('|', op.Operation.Action, op.Operation.Target.ToUpperInvariant(), op.Operation.ConflictDecision, op.Operation.Privilege,
-            op.Recipe?.Preview ?? string.Empty, op.Sha256 ?? string.Empty, op.Operation.ExpectedTargetState ?? string.Empty);
+        => Application.Machine.RestoreEffects.Key(op.Operation.Action.ToString(), op.Operation.Target, op.Operation.ConflictDecision.ToString(), op.Operation.Privilege.ToString(),
+            op.Recipe?.Preview, op.Sha256, op.Operation.ExpectedTargetState);
 
     public static string Hash(IEnumerable<string> effects)
-        => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', effects.Order(StringComparer.Ordinal)))));
+        => Application.Machine.RestoreEffects.Hash(effects);
 }

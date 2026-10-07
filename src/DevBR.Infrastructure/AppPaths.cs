@@ -19,6 +19,8 @@ public sealed class AppPaths
 
     public string SettingsPath => Path.Combine(Root, "settings.json");
 
+    public string ReportsDirectory => Path.Combine(Root, "reports");
+
     public string DefaultScratchDirectory => Path.Combine(Root, "scratch");
 
     /// <summary>Rollback records are kept until the user explicitly removes them.</summary>

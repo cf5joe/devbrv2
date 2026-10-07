@@ -129,7 +129,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
         var plan = new RestorePlan(Guid.NewGuid(), overview.Manifest.ArchiveId, [.. operations.Select(o => o.Operation)], [.. context.Findings], PlanApproval.Hash(effects));
 
         logger.LogInformation("Preflight for backup {ArchiveId}: {Operations} operations, {Findings} findings.", overview.Manifest.ArchiveId, operations.Count, context.Findings.Count());
-        return new RestorePreflight(plan, operations, context.MappingRows, context.Rewrites, context.Mcp, context.Reinstall, context.Blocked);
+        return new RestorePreflight(plan, operations, context.MappingRows, context.Rewrites, context.Mcp, context.Reinstall, context.Blocked, mapper);
     }
 
     // --- Mapping ------------------------------------------------------------------------------------------
@@ -242,7 +242,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
         }
     }
 
-    private static bool IsGitPointer(string relative)
+    internal static bool IsGitPointer(string relative)
         => relative.Equals(".git", StringComparison.OrdinalIgnoreCase)
            || (relative.StartsWith(@".git\worktrees\", StringComparison.OrdinalIgnoreCase) && relative.EndsWith(@"\gitdir", StringComparison.OrdinalIgnoreCase))
            || (relative.StartsWith(@".git\modules\", StringComparison.OrdinalIgnoreCase) && relative.EndsWith(@"\config", StringComparison.OrdinalIgnoreCase));
@@ -412,7 +412,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
                         new RestoreOperation($"{record.Key}:path:{variable.Scope}:{mapped.ToUpperInvariant()}", record.Artifact.Id, [], $"PATH ({variable.Scope})", RestoreAction.AppendPathEntry,
                             ConflictDecision.NoConflict, privilege, Reversibility.RollbackCapable, mapped),
                         $"Add to {variable.Scope.ToLowerInvariant()} PATH: {mapped}", exists ? "Appended after the existing entries." : "Held back until this folder exists.",
-                        entry.ArchivePath, null, 0, null, null, exists, []));
+                        entry.ArchivePath, null, 0, null, null, exists, [], mapped));
                     current.Add(expanded);
                 }
 
@@ -442,7 +442,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
                         ConflictDecision.NoConflict, privilege, Reversibility.RollbackCapable, "absent"),
                     $"Set {variable.Name} ({variable.Scope.ToLowerInvariant()})",
                     resolved ? $"{shown} · {kind}" : $"{shown} · held back until its location is mapped to this computer",
-                    entry.ArchivePath, null, 0, null, null, resolved, []));
+                    entry.ArchivePath, Application.Machine.RestoreEffects.Sha256(value), 0, null, null, resolved, [], value, variable.Kind == RegistryValueKind.ExpandString));
             }
             else if (!string.Equals(current2, value, StringComparison.Ordinal))
             {
@@ -452,7 +452,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
                     new RestoreOperation(opId, record.Artifact.Id, [], $"ENV:{variable.Scope}:{variable.Name}", use ? RestoreAction.SetEnvironmentVariable : RestoreAction.Skip,
                         decision, privilege, Reversibility.RollbackCapable, $"value:{Hash(current2)}"),
                     $"{variable.Name} ({variable.Scope.ToLowerInvariant()}) differs", use ? $"Will be set to {shown}" : "This computer's value is kept.",
-                    entry.ArchivePath, null, 0, null, null, true, [ConflictDecision.KeepExisting, ConflictDecision.UseBackup]));
+                    entry.ArchivePath, use ? Application.Machine.RestoreEffects.Sha256(value) : null, 0, null, null, resolved, [ConflictDecision.KeepExisting, ConflictDecision.UseBackup], value, variable.Kind == RegistryValueKind.ExpandString));
             }
         }
 
@@ -757,7 +757,12 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
             var tool = KnownTools.Get(group.Key);
             var servers = string.Join(", ", group.Select(s => s.Name).Distinct());
             var recipe = context.WinGetAllowed ? PackageRecipes.Runtime(group.Key) : null;
-            var artifacts = group.Select(s => s.ArtifactId).Distinct().ToList();
+
+            // Usable items first: the install is attributed to an item that can actually be restored.
+            var artifacts = group.Select(s => s.ArtifactId).Distinct().OrderBy(a => context.Blocked.Contains(a)).ToList();
+
+            // Held back while every item that needs it is blocked: installing it would not help yet.
+            var usable = !context.Blocked.Contains(artifacts[0]);
 
             if (recipe is not null)
             {
@@ -765,7 +770,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
                     new RestoreOperation($"runtime:{group.Key}", artifacts[0], [], recipe.PackageId, RestoreAction.InstallDependency, ConflictDecision.NoConflict,
                         recipe.RequiresElevation ? PrivilegeRequirement.Elevated : PrivilegeRequirement.User, Reversibility.Irreversible, "not-installed"),
                     $"Install {recipe.DisplayName}", $"{recipe.Preview} · from {recipe.Source}{(recipe.RequiresElevation ? " · needs administrator approval" : string.Empty)}. Installers cannot be rolled back.",
-                    null, null, 0, recipe, null, true, []));
+                    null, null, 0, recipe, null, usable, []));
             }
 
             context.Finding(FindingSeverity.Warning, artifacts, tool?.DisplayName ?? group.Key,

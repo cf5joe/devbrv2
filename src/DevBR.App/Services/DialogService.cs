@@ -18,10 +18,18 @@ public interface IDialogService
     void RevealFolder(string path);
 
     void OpenDocument(string path);
+
+    /// <summary>A yes/no question; safe to call from any thread.</summary>
+    bool Confirm(string title, string message);
 }
 
 public sealed class DialogService : IDialogService
 {
+    public bool Confirm(string title, string message)
+        => System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            System.Windows.MessageBox.Show(System.Windows.Application.Current.MainWindow!, message, title, System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question, System.Windows.MessageBoxResult.No) == System.Windows.MessageBoxResult.Yes);
+
     public string? PickBackupFile()
     {
         var dialog = new OpenFileDialog

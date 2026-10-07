@@ -13,6 +13,12 @@ using DevBR.Restore;
 using DevBR.Domain;
 using DevBR.Infrastructure;
 using DevBR.Infrastructure.State;
+using DevBR.Infrastructure.Machine;
+using DevBR.Infrastructure.Workers;
+using DevBR.Application.Machine;
+using DevBR.Application.Restore;
+using DevBR.Restore.Execution;
+using DevBR.Simulation;
 
 namespace DevBR.App.ViewModels;
 
@@ -56,7 +62,8 @@ public sealed record BackupEntryRow(string Path, string Size);
 /// are extracted (by the archive worker, into a private folder) and verified; nothing is restored or run.
 /// </summary>
 public sealed partial class RestoreViewModel(IArchiveService archive, IDialogService dialogs, ActivityStore activity, ISettingsStore settings, AppPaths paths,
-    RestorePlanner planner, MachineContext machine) : PageViewModel
+    RestorePlanner planner, MachineContext machine, RestoreExecutor executor, RestoreRollbackService rollbacks, IRestoreJournal journal,
+    BrokerElevationProvider brokerElevation, ProcessPackageInstaller packageInstaller) : PageViewModel
 {
     private const int EntriesPerPage = 200;
 
@@ -87,13 +94,13 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasPreflight))]
-    [NotifyCanExecuteChangedFor(nameof(ApproveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ApproveCommand), nameof(RestoreNowCommand))]
     public partial RestorePreflight? Preflight { get; set; }
 
     public bool HasPreflight => Preflight is not null;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RunPreflightCommand), nameof(ApproveCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RunPreflightCommand), nameof(ApproveCommand), nameof(RestoreNowCommand))]
     public partial bool IsPreflighting { get; set; }
 
     [ObservableProperty]
@@ -111,7 +118,7 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
     [RelayCommand(CanExecute = nameof(CanRunPreflight))]
     private Task RunPreflightAsync() => PreflightAsync();
 
-    private bool CanRunPreflight() => !IsPreflighting && _overview is not null;
+    private bool CanRunPreflight() => !IsPreflighting && !IsRestoring && _overview is not null;
 
     [RelayCommand]
     private async Task ChangeMappingAsync(MappingRow? row)
@@ -136,11 +143,251 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
         _approval = PlanApproval.Approve(Preflight);
         var count = Preflight.Effects.Count();
         ApprovalSeverity = InfoSeverity.Success;
-        ApprovalStatus = $"Plan approved: {count} change{(count == 1 ? string.Empty : "s")} on {machine.Label}. Blocked items are left out until you recheck them. Restore execution is not included in this build yet.";
+        ApprovalStatus = $"Plan approved: {count} change{(count == 1 ? string.Empty : "s")} on {machine.Label}. Blocked items are left out until you recheck them.";
+        RestoreNowCommand.NotifyCanExecuteChanged();
         await activity.AddAsync(EventSeverity.Information, "Restore", $"Approved a restore plan for {FileName} with {count} changes.", Preflight.Plan.ApprovalHash);
     }
 
-    private bool CanApprove() => Preflight is not null && !IsPreflighting && Preflight.Effects.Any();
+    private bool CanApprove() => Preflight is not null && !IsPreflighting && !IsRestoring && Preflight.Effects.Any();
+
+    // --- Restore execution (steps 8–10: run, verify, report; rollback) -------------------------
+
+    private CancellationTokenSource? _restoreCts;
+
+    public ObservableCollection<RestoreResultRow> Results { get; } = [];
+
+    public ObservableCollection<RecentRestoreRow> RecentRestores { get; } = [];
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RestoreNowCommand), nameof(RunPreflightCommand), nameof(ApproveCommand), nameof(RollBackCommand))]
+    public partial bool IsRestoring { get; set; }
+
+    [ObservableProperty]
+    public partial string? RestoreStatus { get; set; }
+
+    [ObservableProperty]
+    public partial double RestorePercent { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRun))]
+    public partial RestoreRun? LastRun { get; set; }
+
+    public bool HasRun => LastRun is not null;
+
+    [ObservableProperty]
+    public partial string? RunTitle { get; set; }
+
+    [ObservableProperty]
+    public partial string? RunMessage { get; set; }
+
+    [ObservableProperty]
+    public partial InfoSeverity RunSeverity { get; set; }
+
+    [ObservableProperty]
+    public partial string? RecoveryMessage { get; set; }
+
+    [ObservableProperty]
+    public partial string? RollbackMessage { get; set; }
+
+    [ObservableProperty]
+    public partial InfoSeverity RollbackSeverity { get; set; }
+
+    [RelayCommand(CanExecute = nameof(CanRestore))]
+    private async Task RestoreNowAsync()
+    {
+        if (Preflight is null || _approval is null || _overview is null)
+        {
+            return;
+        }
+
+        var count = Preflight.Effects.Count();
+        if (!dialogs.Confirm("Restore now?",
+                $"DevBR will make {count} approved change{(count == 1 ? string.Empty : "s")} on {machine.Label}.\n\n" +
+                "It checks this computer again first and stops if anything new would be changed. Files it replaces are kept so you can roll back; installations cannot be rolled back.\n\nContinue?"))
+        {
+            return;
+        }
+
+        using var cts = new CancellationTokenSource();
+        _restoreCts = cts;
+        IsRestoring = true;
+        LastRun = null;
+        Results.Clear();
+        RollbackMessage = null;
+        RestorePercent = 0;
+        RestoreStatus = "Starting…";
+        var approval = _approval;
+
+        try
+        {
+            var (writer, elevation, installer) = Tools();
+            var request = BuildRequest();
+            var progress = new Progress<RestoreProgress>(p =>
+            {
+                RestoreStatus = p.Total == 0 ? p.Message : $"{p.Message} ({p.Done:N0} of {p.Total:N0})";
+                RestorePercent = p.Total == 0 ? 0 : 100.0 * p.Done / p.Total;
+            });
+            var run = await Task.Run(() => executor.ExecuteAsync(new RestoreExecutionRequest(request, approval, writer, elevation, installer, paths.ReportsDirectory),
+                progress, cts.Token), CancellationToken.None);
+            ShowRun(run);
+            await activity.AddAsync(run.Outcome == RestoreRunOutcome.Completed ? EventSeverity.Information : EventSeverity.Warning, "Restore",
+                $"Restore of {FileName} to {machine.Label}: {run.Message} {run.Count(Domain.RestoreStatus.Applied)} restored, {run.Count(Domain.RestoreStatus.Failed)} failed, {run.Count(Domain.RestoreStatus.Blocked)} blocked.",
+                run.JobId.ToString());
+            if (run.Outcome == RestoreRunOutcome.ApprovalOutdated)
+            {
+                _approval = null;
+                ApprovalStatus = null;
+                ShowPreflight(run.Preflight);
+            }
+        }
+        catch (Exception ex) when (ex is ArchiveException or BackupFormatException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            RunSeverity = InfoSeverity.Error;
+            RunTitle = "The restore stopped";
+            RunMessage = $"{ex.Message} Changes made so far are recorded; you can roll them back from Recent restores.";
+        }
+        finally
+        {
+            IsRestoring = false;
+            RestoreStatus = null;
+            _restoreCts = null;
+            LoadRecent();
+        }
+    }
+
+    private bool CanRestore() => _approval is not null && Preflight is not null && !IsPreflighting && !IsRestoring;
+
+    [RelayCommand]
+    private void CancelRestore() => _restoreCts?.Cancel();
+
+    [RelayCommand]
+    private void OpenReport(string? path)
+    {
+        if (path is not null && File.Exists(path))
+        {
+            dialogs.OpenDocument(path);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRollBack))]
+    private async Task RollBackAsync(RecentRestoreRow? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (!string.Equals(row.Summary?.MachineName, machine.Current.Info.ComputerName, StringComparison.OrdinalIgnoreCase))
+        {
+            RollbackSeverity = InfoSeverity.Warning;
+            RollbackMessage = $"That restore was made on {row.Summary?.MachineName ?? "another computer"}. Switch to that computer to roll it back.";
+            return;
+        }
+
+        if (!dialogs.Confirm("Roll back this restore?",
+                "DevBR will undo the file and environment changes this restore made, newest first. Anything changed since the restore is left as it is. Installed software is not removed.\n\nContinue?"))
+        {
+            return;
+        }
+
+        IsRestoring = true;
+        RestoreStatus = "Rolling back…";
+        try
+        {
+            var (writer, elevation, _) = Tools();
+            var result = await Task.Run(() => rollbacks.RollbackAsync(row.JobId, machine.Current, writer, elevation, CancellationToken.None));
+            RollbackSeverity = result.Complete ? InfoSeverity.Success : InfoSeverity.Warning;
+            RollbackMessage = (result.Complete
+                    ? $"Rolled back {Formatting.Count(result.Undone.Count, "change", "changes")}."
+                    : $"Rolled back {Formatting.Count(result.Undone.Count, "change", "changes")}; {Formatting.Count(result.Failed.Count, "change was", "changes were")} kept: " +
+                      string.Join(" ", result.Failed.Take(3).Select(f => f.Message)))
+                + (result.NotReversible.Count == 0 ? string.Empty : $" {Formatting.Count(result.NotReversible.Count, "installation", "installations")} cannot be rolled back.");
+            await activity.AddAsync(result.Complete ? EventSeverity.Information : EventSeverity.Warning, "Restore", $"Rollback of a restore: {RollbackMessage}", row.JobId.ToString());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            RollbackSeverity = InfoSeverity.Error;
+            RollbackMessage = $"Rollback stopped: {ex.Message}";
+        }
+        finally
+        {
+            IsRestoring = false;
+            RestoreStatus = null;
+            LoadRecent();
+        }
+    }
+
+    private bool CanRollBack(RecentRestoreRow? row) => !IsRestoring && (row?.CanRollBack ?? true);
+
+    public override Task OnNavigatedToAsync()
+    {
+        RecoverInterrupted();
+        LoadRecent();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Settles restores that were interrupted (crash or power loss) on this computer. Nothing is redone.</summary>
+    private void RecoverInterrupted()
+    {
+        foreach (var job in rollbacks.FindInterrupted())
+        {
+            var summary = RestoreJobSummary.FromJson(job.Summary);
+            if (!string.Equals(summary?.MachineName, machine.Current.Info.ComputerName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var recovered = rollbacks.Recover(job.JobId, machine.Current);
+            var applied = recovered.Count(r => r.Classification == RecoveryClassification.Applied);
+            var uncertain = recovered.Count(r => r.Classification == RecoveryClassification.Uncertain);
+            RecoveryMessage = $"A restore started {job.CreatedAt.ToLocalTime():g} was interrupted. DevBR checked its unfinished changes: {applied} had been made, " +
+                $"{recovered.Count - applied - uncertain} had not, and {uncertain} could not be confirmed. Nothing was redone. Roll it back below, or plan the restore again.";
+            _ = activity.AddAsync(EventSeverity.Warning, "Restore", RecoveryMessage, job.JobId.ToString());
+        }
+    }
+
+    private void LoadRecent()
+        => Replace(RecentRestores, journal.ListJobs(JobKinds.Restore, 10).Select(j => new RecentRestoreRow(j, RestoreJobSummary.FromJson(j.Summary))));
+
+    private void ShowRun(RestoreRun run)
+    {
+        LastRun = run;
+        (RunSeverity, RunTitle) = run.Outcome switch
+        {
+            RestoreRunOutcome.Completed => (InfoSeverity.Success, "Restore finished"),
+            RestoreRunOutcome.CompletedWithProblems => (InfoSeverity.Warning, "Restore finished; some items need attention"),
+            RestoreRunOutcome.Cancelled => (InfoSeverity.Warning, "Restore cancelled"),
+            _ => (InfoSeverity.Warning, "Nothing was restored"),
+        };
+        RunMessage = run.Outcome == RestoreRunOutcome.ApprovalOutdated
+            ? run.Message
+            : $"{run.Count(Domain.RestoreStatus.Applied)} restored ({run.Operations.Count(o => o.Verification == VerificationLevel.FunctionallyVerified)} verified working) · " +
+              $"{run.Count(Domain.RestoreStatus.Failed)} failed · {run.Count(Domain.RestoreStatus.Blocked)} blocked · {run.Count(Domain.RestoreStatus.Skipped)} skipped. {run.Message}";
+        Replace(Results, run.Operations.Select(o => new RestoreResultRow(o)).OrderByDescending(r => r.NeedsAttention).ThenBy(r => r.Item, StringComparer.CurrentCulture));
+    }
+
+    private RestoreRequest BuildRequest()
+    {
+        var work = settings.Current.ScratchDirectory ?? paths.DefaultScratchDirectory;
+        Directory.CreateDirectory(work);
+        return new RestoreRequest(_overview!, _password, machine.Current, Items.Where(i => i.IsSelected).Select(i => i.Key).ToHashSet(StringComparer.Ordinal),
+            [.. _userMappings.Values], new Dictionary<string, ConflictDecision>(_decisions), work);
+    }
+
+    /// <summary>How changes reach the current target: this computer (UAC broker, WinGet) or a simulated one.</summary>
+    private (IMachineWriter Writer, IElevationProvider Elevation, IPackageInstaller Installer) Tools()
+    {
+        if (machine.Current is SimulatedMachine simulated)
+        {
+            var writer = new SimulatedMachineWriter(simulated);
+            var elevation = new SimulatedElevationProvider(simulated, writer,
+                () => dialogs.Confirm("Simulated administrator prompt", "This simulated computer asks for administrator approval for machine-wide changes, as Windows would.\n\nApprove?"),
+                id => RestoreJobSummary.ApprovedEffects(journal, id));
+            return (writer, elevation, new SimulatedPackageInstaller(simulated, writer));
+        }
+
+        return (new WindowsMachineWriter(), brokerElevation, packageInstaller);
+    }
 
     private async Task PreflightAsync()
     {
@@ -157,11 +404,7 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
 
         try
         {
-            var work = settings.Current.ScratchDirectory ?? paths.DefaultScratchDirectory;
-            Directory.CreateDirectory(work);
-            var request = new RestoreRequest(_overview, _password, machine.Current, Items.Where(i => i.IsSelected).Select(i => i.Key).ToHashSet(StringComparer.Ordinal),
-                [.. _userMappings.Values], new Dictionary<string, ConflictDecision>(_decisions), work);
-            var result = await planner.PreflightAsync(request, new Progress<string>(s => PreflightStatus = s), cts.Token);
+            var result = await planner.PreflightAsync(BuildRequest(), new Progress<string>(s => PreflightStatus = s), cts.Token);
             ShowPreflight(result);
             PreflightStatus = null;
         }
@@ -244,6 +487,7 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
             else
             {
                 _approval = null;
+                RestoreNowCommand.NotifyCanExecuteChanged();
                 ApprovalSeverity = InfoSeverity.Warning;
                 ApprovalStatus = "The plan now includes changes you have not approved. Review them and approve again.";
             }
@@ -522,6 +766,8 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
         _approval = null;
         ApprovalStatus = null;
         Preflight = null;
+        LastRun = null;
+        Results.Clear();
         PreflightSummary = null;
         RunPreflightCommand.NotifyCanExecuteChanged();
     }

@@ -27,6 +27,11 @@ come from `machine.json` (DevBR never runs anything it discovers, real or simula
 | `SampleMachines.DeveloperWorkstation` ("ALICE-DEV") | Every Phase 2 discovery scenario: both registry views, user and machine installs, Store apps, a portable VS Code, two Python versions, package managers, all 13 tool integrations, a `CODEX_HOME` override, secrets, repositories (standard, linked worktree, submodule, bare, alternates, LFS, stash, locked, credentials in a remote URL), another user's profile, a junction, an inaccessible folder and a cloud placeholder |
 | `SampleMachines.CleanTarget` ("NEW-LAPTOP") | A freshly set-up PC with only Git and VS Code: the restore target for Phases 4–5 |
 
+Restoring to a simulated machine writes into its fixture folder and `registry.json`. The administrator
+prompt is simulated with a Yes/No question (the approved-effects check is the same one the real broker
+performs), and installations leave the traces a real installer would (an Add/Remove Programs entry and
+executable, or an `extensions.json` entry) without downloading anything.
+
 Build your own with `SimulatedMachineBuilder` (see `tests/DevBR.Tests/Discovery`).
 
 ## Using them in the app (development builds only)

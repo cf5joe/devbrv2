@@ -5,8 +5,8 @@ backup, and restores supported configuration and personal development assets on 
 The full product plan is in [devbr-plan.md](devbr-plan.md).
 
 **Status:** Phases 1 (foundation and portable shell), 2 (discovery and migration catalog), 3 (backup
-creation and archive inspection) and 4 (restore planning and preflight) are implemented. Restore execution
-and recovery follow in Phase 5.
+creation and archive inspection), 4 (restore planning and preflight) and 5 (restore execution, verification,
+rollback and recovery) are implemented. Hardening and the two-machine acceptance pass follow in Phase 6.
 The archive format is described in [docs/ARCHIVE-FORMAT.md](docs/ARCHIVE-FORMAT.md). Discovery and backup can run
 against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md).
 
@@ -18,13 +18,13 @@ against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md).
 | `src/DevBR.Application` | Contracts: discovery providers, migration adapters, archive service, restore executor, settings |
 | `src/DevBR.Discovery` | Discovery engine, providers (registry, Store, App Paths, Start menu, PATH, package managers, environment, filesystem), 15 tool adapters, known-tool catalog |
 | `src/DevBR.Backup` | Backup planner (exclusions that never drop Git-tracked content, overlaps, findings), staging runner with redaction and secret detection, backup reader |
-| `src/DevBR.Restore` | Read-only preflight and restore planning: path mapping, structured merge previews, MCP and dependency analysis, package recipes, environment/PATH planning, plan approval |
+| `src/DevBR.Restore` | Preflight and planning (path mapping, merge previews, MCP and dependency analysis, package recipes, plan approval) and execution: journaled per-item commits, comment-preserving JSONC merges, repository restore, verification levels, HTML/JSON reports, rollback and crash recovery |
 | `src/DevBR.Simulation` | Fixture-backed simulated machines and the sample workstation / clean target |
-| `src/DevBR.Infrastructure` | App paths, settings, SQLite state, activity and discovery catalog, logging, real Windows machine, worker host, broker launcher |
+| `src/DevBR.Infrastructure` | App paths, settings, SQLite state and restore journal, DPAPI-protected rollback store, activity and discovery catalog, logging, real Windows machine and writer, WinGet/editor installer, worker host, broker launcher and elevation |
 | `src/DevBR.Ipc` | Versioned named-pipe protocol: framing, ACLs, OS peer verification, handshake, allow-listed dispatch |
 | `src/DevBR.Archive` | 7z (LZMA2, non-solid, AES-256 + header encryption) via SharpSevenZip; safe extraction |
 | `src/DevBR.ArchiveWorker` | Unelevated worker process; the only process that loads the native 7-Zip library |
-| `src/DevBR.Broker` | Elevated broker skeleton with a narrow operation set; refuses unapproved plans |
+| `src/DevBR.Broker` | Elevated broker with a narrow operation set: applies machine environment changes only when they match an approved job's effects in the user's journal |
 | `src/DevBR.App` | WPF/MVVM desktop shell (`DevBR.exe`): navigation, themes, Restore inspection, diagnostics |
 | `tests/DevBR.Tests` | xUnit v3 tests: archive security, IPC/broker rejection, worker crashes, contrast, state |
 

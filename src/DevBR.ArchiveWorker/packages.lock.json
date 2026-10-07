@@ -332,7 +332,8 @@
           "Microsoft.Data.Sqlite": "[10.0.12, )",
           "Microsoft.Extensions.Hosting": "[10.0.12, )",
           "Serilog.Extensions.Hosting": "[10.0.0, )",
-          "Serilog.Sinks.File": "[7.0.0, )"
+          "Serilog.Sinks.File": "[7.0.0, )",
+          "System.Security.Cryptography.ProtectedData": "[10.0.12, )"
         }
       },
       "devbr.ipc": {
@@ -418,6 +419,12 @@
         "requested": "[2.0.128, )",
         "resolved": "2.0.128",
         "contentHash": "/H0dJ+Otue55H4yzQgtPLBCSfgIY9hqnQwuQuWCZdwammIHVj5AaF0+77AAbKOACA8ISo8nZIhOMmKqsULOUUg=="
+      },
+      "System.Security.Cryptography.ProtectedData": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "wO0W8VDMeRJZakRySOmemAnrBZMwEFRlbfBtATxUiLf2I3IhSRnCp1Vt157NWptdE4IJ7eftd5n8q9LtaKHFTQ=="
       },
       "Tomlyn": {
         "type": "CentralTransitive",

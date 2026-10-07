@@ -26,16 +26,19 @@ public static class BrokerOperations
 
     public const string PlanNotApprovedCode = "plan_not_approved";
     public const string InvalidChangeCode = "invalid_change";
+    public const string ConcurrentChangeCode = "concurrent_change";
 }
 
 public sealed record BrokerStatus(bool IsElevated, int ProtocolVersion, IReadOnlyList<string> Operations);
 
 /// <param name="ExpectedCurrentValue">The value preflight observed; the change is refused if the registry differs (concurrent edit).</param>
+/// <param name="NewValue">Null removes the variable (only when undoing a restore that created it).</param>
 /// <param name="Expandable">Preserves REG_EXPAND_SZ versus REG_SZ semantics.</param>
-public sealed record MachineEnvironmentChange(string Name, string? ExpectedCurrentValue, string NewValue, bool Expandable);
+public sealed record MachineEnvironmentChange(string Name, string? ExpectedCurrentValue, string? NewValue, bool Expandable);
 
+/// <param name="JobId">The restore job, whose approved effects the broker reads from the journal.</param>
 /// <param name="ApprovalHash">The hash of the plan the user approved; the broker revalidates it independently.</param>
-public sealed record ApplyMachineEnvironmentRequest(Guid PlanId, string ApprovalHash, IReadOnlyList<MachineEnvironmentChange> Changes);
+public sealed record ApplyMachineEnvironmentRequest(Guid JobId, string ApprovalHash, IReadOnlyList<MachineEnvironmentChange> Changes);
 
 public sealed record ApplyMachineEnvironmentResponse(IReadOnlyList<string> Applied);
 

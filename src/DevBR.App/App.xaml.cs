@@ -5,11 +5,13 @@ using DevBR.App.Theming;
 using DevBR.App.ViewModels;
 using DevBR.App.Views;
 using DevBR.Application.Archive;
+using DevBR.Application.Restore;
 using DevBR.Application.Settings;
 using DevBR.Discovery;
 using DevBR.Domain;
 using DevBR.Infrastructure;
 using DevBR.Infrastructure.Logging;
+using DevBR.Infrastructure.Machine;
 using DevBR.Infrastructure.Settings;
 using DevBR.Infrastructure.State;
 using DevBR.Infrastructure.Workers;
@@ -107,6 +109,12 @@ public partial class App
         builder.Services.AddSingleton<MachineContext>();
         builder.Services.AddSingleton<CatalogSession>();
         builder.Services.AddSingleton<DevBR.Restore.RestorePlanner>();
+        builder.Services.AddSingleton<IRestoreJournal>(sp => new SqliteRestoreJournal(sp.GetRequiredService<StateDatabase>()));
+        builder.Services.AddSingleton<IRollbackStore>(new ProtectedRollbackStore(paths.RollbackDirectory));
+        builder.Services.AddSingleton<DevBR.Restore.Execution.RestoreExecutor>();
+        builder.Services.AddSingleton<DevBR.Restore.Execution.RestoreRollbackService>();
+        builder.Services.AddSingleton<ProcessPackageInstaller>();
+        builder.Services.AddSingleton<BrokerElevationProvider>();
 
         // Presentation
         builder.Services.AddSingleton<ThemeService>();

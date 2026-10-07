@@ -131,3 +131,68 @@ public static class RestoreLabels
         public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) => throw new NotSupportedException();
     }
 }
+
+/// <summary>The outcome of one restore operation, as shown after a restore.</summary>
+public sealed record RestoreResultRow(DevBR.Restore.Execution.OperationReport Report)
+{
+    public string Title => Report.Title;
+
+    public string Item => Report.ArtifactName;
+
+    public string Status => Report.Status switch
+    {
+        RestoreStatus.Applied => Report.Verification switch
+        {
+            VerificationLevel.FunctionallyVerified => "Restored · verified working",
+            VerificationLevel.ConfigurationApplied => "Restored",
+            VerificationLevel.VerificationFailed => "Restored · check failed",
+            _ => "Restored",
+        },
+        RestoreStatus.Skipped => "Skipped",
+        RestoreStatus.Blocked => "Blocked",
+        _ => "Failed",
+    };
+
+    public InfoSeverity Severity => Report.Status switch
+    {
+        RestoreStatus.Failed => InfoSeverity.Error,
+        RestoreStatus.Blocked => InfoSeverity.Warning,
+        RestoreStatus.Applied when Report.Verification == VerificationLevel.VerificationFailed => InfoSeverity.Warning,
+        RestoreStatus.Applied => InfoSeverity.Success,
+        _ => InfoSeverity.Information,
+    };
+
+    public string? Detail => string.Join(" ", new[] { Report.Detail, Report.NextSteps.Count == 0 ? null : "Next: " + string.Join(" ", Report.NextSteps) }
+        .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+    public bool NeedsAttention => Severity is InfoSeverity.Error or InfoSeverity.Warning;
+}
+
+/// <summary>A restore from the journal, offered for rollback or to reopen its report.</summary>
+public sealed record RecentRestoreRow(DevBR.Application.Restore.JournalJob Job, DevBR.Application.Restore.RestoreJobSummary? Summary)
+{
+    public Guid JobId => Job.JobId;
+
+    public string When => Job.CreatedAt.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture);
+
+    public string Title => $"{System.IO.Path.GetFileName(Summary?.ArchivePath) ?? "Backup"} → {Summary?.MachineName ?? "unknown computer"}";
+
+    public string State => Job.State switch
+    {
+        DevBR.Application.Restore.JobStates.Completed => "Completed",
+        DevBR.Application.Restore.JobStates.CompletedWithProblems => "Completed with problems",
+        DevBR.Application.Restore.JobStates.Cancelled => "Cancelled",
+        DevBR.Application.Restore.JobStates.Interrupted => "Interrupted",
+        DevBR.Application.Restore.JobStates.RolledBack => "Rolled back",
+        DevBR.Application.Restore.JobStates.PartiallyRolledBack => "Partly rolled back",
+        _ => "Running",
+    };
+
+    public string Counts => Summary is null ? string.Empty : $"{Summary.Applied} restored · {Summary.Failed} failed · {Summary.Blocked} blocked";
+
+    public string? ReportPath => Summary?.ReportHtmlPath;
+
+    public bool HasReport => ReportPath is not null && System.IO.File.Exists(ReportPath);
+
+    public bool CanRollBack => Job.State is not (DevBR.Application.Restore.JobStates.RolledBack or DevBR.Application.Restore.JobStates.Running);
+}

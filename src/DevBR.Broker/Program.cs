@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Security.Principal;
 using DevBR.Infrastructure;
 using DevBR.Infrastructure.Logging;
+using DevBR.Infrastructure.State;
 using DevBR.Ipc;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using Serilog;
@@ -42,7 +44,10 @@ internal static class Program
 
         try
         {
-            var handler = new BrokerOperationHandler(new NoApprovedPlans(), () => BuildInfo.IsElevated, loggerFactory.CreateLogger<BrokerOperationHandler>());
+            // Approved effects come from the initiating user's journal, opened read-only.
+            var journal = new SqliteRestoreJournal(new SqliteConnectionStringBuilder { DataSource = paths.StateDatabasePath, Mode = SqliteOpenMode.ReadOnly }.ToString());
+            var handler = new BrokerOperationHandler(new JournalApprovedPlanStore(journal), new RegistryMachineEnvironment(), () => BuildInfo.IsElevated,
+                loggerFactory.CreateLogger<BrokerOperationHandler>());
             var expectedClient = Path.Combine(AppContext.BaseDirectory, "DevBR.exe");
 
             var server = new IpcServer(

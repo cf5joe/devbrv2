@@ -115,6 +115,36 @@ internal sealed class SimulatedRegistry : IRegistry
     public static string HiveName(RegistryHive hive, RegistryView view)
         => hive == RegistryHive.CurrentUser ? "HKCU" : view == RegistryView.Registry64 ? "HKLM64" : "HKLM32";
 
+    private readonly Lock _gate = new();
+
+    /// <summary>Sets (or, with a null definition, removes) a value and persists the registry file.</summary>
+    internal void SetValue(string root, string hiveName, string key, string name, RegistryValueDefinition? value)
+    {
+        lock (_gate)
+        {
+            if (!_hives.TryGetValue(hiveName, out var keys))
+            {
+                _hives[hiveName] = keys = new(StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (!keys.TryGetValue(key, out var values))
+            {
+                keys[key] = values = new(StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (value is null)
+            {
+                values.Remove(name);
+            }
+            else
+            {
+                values[name] = value;
+            }
+
+            File.WriteAllText(Path.Combine(root, "registry.json"), JsonSerializer.Serialize(_hives, SimulatedMachine.JsonOptions));
+        }
+    }
+
     public IRegistryKey? OpenKey(RegistryHive hive, RegistryView view, string path)
     {
         if (!_hives.TryGetValue(HiveName(hive, view), out var keys))
