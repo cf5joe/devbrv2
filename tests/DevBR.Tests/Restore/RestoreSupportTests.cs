@@ -90,8 +90,22 @@ public sealed class RestoreSupportTests
         var onDisk = File.ReadAllBytes(Directory.GetFiles(temp.Combine("rollback"), "*.bin", SearchOption.AllDirectories).Single());
         Assert.DoesNotContain("SECRET-MARKER", Encoding.UTF8.GetString(onDisk), StringComparison.Ordinal);
 
-        using var restored = store.Open(job, id);
-        Assert.Equal(content, ((MemoryStream)restored).ToArray());
+        using (var restored = store.Open(job, id))
+        {
+            Assert.False(restored.CanSeek); // streamed chunk by chunk, never buffered whole
+            using var copy = new MemoryStream();
+            restored.CopyTo(copy, 4096);
+            Assert.Equal(content, copy.ToArray());
+        }
+
+        // A truncated copy is reported as damaged rather than returning partial content silently.
+        var file = Directory.GetFiles(temp.Combine("rollback"), "*.bin", SearchOption.AllDirectories).Single();
+        File.WriteAllBytes(file, onDisk[..(onDisk.Length - 10)]);
+        using (var truncated = store.Open(job, id))
+        {
+            Assert.Throws<InvalidDataException>(() => truncated.CopyTo(Stream.Null));
+        }
+
         Assert.Throws<ArgumentException>(() => store.Open(job, @"..\..\escape"));
 
         store.DeleteJob(job);

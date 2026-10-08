@@ -89,13 +89,15 @@ internal sealed class RestoreUndo(IRestoreJournal journal, IRollbackStore store,
             return (false, "No copy of the previous file was kept.");
         }
 
-        using var copy = store.Open(jobId, intent.Copy);
-        if (Journal.Sha(copy) != intent.Before)
+        using (var check = store.Open(jobId, intent.Copy))
         {
-            return (false, "The saved copy of the previous file is damaged.");
+            if (Journal.Sha(check) != intent.Before)
+            {
+                return (false, "The saved copy of the previous file is damaged.");
+            }
         }
 
-        copy.Position = 0;
+        using var copy = store.Open(jobId, intent.Copy);
         writer.WriteFileAtomic(intent.Target, copy);
         return (true, $"Put back the previous {intent.Target}.");
     }
