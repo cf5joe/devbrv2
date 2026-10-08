@@ -340,7 +340,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
                 ? "DevBR changes environment variables and PATH only on Windows versions it has verified, so they are listed for reference instead."
                 : $"DevBR merges settings and rewrites paths only for versions whose file formats it has verified ({support.VersionText}). These items are restored as whole files instead: this computer's files are kept unless you choose to replace them or restore the backup's copy alongside, and files are written exactly as captured.",
             windows
-                ? ["Set the variables you need yourself after restoring."]
+                ? [$"Set the variables you need yourself after restoring, or restore onto a verified Windows build ({support.VersionText})."]
                 : [$"Install a verified version of {support.HostName} ({support.VersionText}), then choose Recheck.", "Or continue, and choose Replace or Restore alongside for the files you want from the backup."],
             prerequisiteKey: $"unverified-version:{support.HostToolId}");
         return false;
@@ -449,7 +449,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
                 context.Finding(FindingSeverity.Information, [record.Artifact.Id], null,
                     $"{record.Artifact.DisplayName} are listed for reference only: {string.Join(", ", names.Take(6))}{(names.Count > 6 ? "…" : string.Empty)}.",
                     "No variables or PATH entries are changed on an unverified Windows version.",
-                    ["Set the variables you need yourself, or restore onto a verified Windows version."], canRecheck: false);
+                    ["Set the variables you need yourself after restoring."], canRecheck: false);
             }
 
             return;
