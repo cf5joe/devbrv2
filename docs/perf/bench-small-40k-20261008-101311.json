@@ -1,0 +1,188 @@
+{
+  "Name": "small-40k",
+  "Machine": {
+    "Cpu": "Intel(R) Core(TM) Ultra 7 165H",
+    "LogicalProcessors": 22,
+    "RamBytes": 68111572992,
+    "Disk": "work drive C:\\ NTFS",
+    "Os": "Microsoft Windows 10.0.26200",
+    "Runtime": "10.0.12"
+  },
+  "Settings": {
+    "Name": "small-40k",
+    "SmallFiles": 40000,
+    "SmallFileBytes": 1024,
+    "LargeFiles": 0,
+    "LargeFileBytes": 1073741824,
+    "Compression": 2,
+    "Encrypt": false,
+    "InProcess": false,
+    "WorkRoot": null,
+    "ResultsFolder": "C:\\Users\\p2043776\\AppData\\Local\\Temp\\devbr-bench-results",
+    "Keep": false
+  },
+  "ArchiveMode": "DevBR.ArchiveWorker process",
+  "StartedAt": "2026-10-08T10:13:11.6332809-04:00",
+  "CompletedAt": "2026-10-08T10:24:36.3117444-04:00",
+  "Stages": [
+    {
+      "Name": "generate",
+      "Seconds": 71.5820167,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 59994112,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 558.799567880853,
+      "MegabytesPerSecond": 0.5457027030086455
+    },
+    {
+      "Name": "plan",
+      "Seconds": 0.2533773,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 72941568,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 157867.33855005953,
+      "MegabytesPerSecond": 154.1673228027925
+    },
+    {
+      "Name": "backup (total)",
+      "Seconds": 210.4309103,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 89456640,
+      "PeakWorkingSetWorker": 277794816,
+      "FilesPerSecond": 190.0861424919664,
+      "MegabytesPerSecond": 0.18563099852731094
+    },
+    {
+      "Name": "  backup: staging (approx.)",
+      "Seconds": 124.7206599,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 0,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 320.71671230790207,
+      "MegabytesPerSecond": 0.3131999143631856
+    },
+    {
+      "Name": "  backup: compression (approx.)",
+      "Seconds": 40.835051699999994,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 0,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 979.5506148459218,
+      "MegabytesPerSecond": 0.9565923973104705
+    },
+    {
+      "Name": "  backup: verification (approx.)",
+      "Seconds": 44.8751987,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 0,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 891.3609556897628,
+      "MegabytesPerSecond": 0.870469683290784
+    },
+    {
+      "Name": "open backup (indexes only)",
+      "Seconds": 1.310623,
+      "Items": 40000,
+      "Bytes": 0,
+      "PeakWorkingSetBench": 94162944,
+      "PeakWorkingSetWorker": 136683520,
+      "FilesPerSecond": 30519.836749393224,
+      "MegabytesPerSecond": 0
+    },
+    {
+      "Name": "restore preflight",
+      "Seconds": 2.2732475,
+      "Items": 40000,
+      "Bytes": 0,
+      "PeakWorkingSetBench": 209051648,
+      "PeakWorkingSetWorker": 133443584,
+      "FilesPerSecond": 17595.97228194466,
+      "MegabytesPerSecond": 0
+    },
+    {
+      "Name": "restore execute (incl. second preflight, extraction, journal, validation)",
+      "Seconds": 353.0649507,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 475365376,
+      "PeakWorkingSetWorker": 141725696,
+      "FilesPerSecond": 113.29360198653103,
+      "MegabytesPerSecond": 0.11063828318997171
+    },
+    {
+      "Name": "  restore: preflight again (approx.)",
+      "Seconds": 2.6642187,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 0,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 15013.782464630249,
+      "MegabytesPerSecond": 14.661896938115477
+    },
+    {
+      "Name": "  restore: extraction (approx.)",
+      "Seconds": 83.05199379999999,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 0,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 481.6260052266199,
+      "MegabytesPerSecond": 0.470337895729121
+    },
+    {
+      "Name": "  restore: apply \u002B journal (approx.)",
+      "Seconds": 236.09231820000002,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 0,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 169.42524985550332,
+      "MegabytesPerSecond": 0.16545434556201497
+    },
+    {
+      "Name": "  restore: validation (approx.)",
+      "Seconds": 31.25641999999999,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 0,
+      "PeakWorkingSetWorker": 0,
+      "FilesPerSecond": 1279.737090812064,
+      "MegabytesPerSecond": 1.2497432527461563
+    },
+    {
+      "Name": "compare restored data",
+      "Seconds": 43.2051591,
+      "Items": 40000,
+      "Bytes": 40960000,
+      "PeakWorkingSetBench": 476061696,
+      "PeakWorkingSetWorker": 134524928,
+      "FilesPerSecond": 925.8153617122081,
+      "MegabytesPerSecond": 0.9041165641720782
+    },
+    {
+      "Name": "journal only: 1,000 intent\u002Boutcome pairs",
+      "Seconds": 1.3780975,
+      "Items": 1000,
+      "Bytes": 0,
+      "PeakWorkingSetBench": 448684032,
+      "PeakWorkingSetWorker": 134524928,
+      "FilesPerSecond": 725.6380626189366,
+      "MegabytesPerSecond": 0
+    }
+  ],
+  "ArchiveBytes": 23177013,
+  "RestoreOutcome": "Completed",
+  "RestoreApplied": 40000,
+  "RestoreFailed": 0,
+  "RestoredMatches": true,
+  "PeakWorkingSetBench": 476151808,
+  "PeakWorkingSetWorker": 277798912,
+  "PeakManagedHeap": 322809048,
+  "Error": null
+}
