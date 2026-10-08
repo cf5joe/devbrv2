@@ -51,18 +51,8 @@ internal static class Program
             var expectedClient = Path.Combine(AppContext.BaseDirectory, "DevBR.exe");
 
             var server = new IpcServer(
-                new IpcServerOptions
-                {
-                    PipeName = arguments.PipeName,
-                    Security = PipeSecurityFactory.Create(arguments.ClientSid),
-                    ExpectedTokenSha256 = arguments.TokenSha256,
-                    PeerPolicy = new ExpectedPeerPolicy(arguments.ClientPid, expectedClient, arguments.ClientSid),
-                    MaxFrameBytes = 64 * 1024,
-                    MaxConcurrentRequests = 1,
-                    DisconnectOnRejectedRequest = true,
-                    ConnectTimeout = TimeSpan.FromSeconds(30),
-                    ErrorMapper = BrokerOperationHandler.MapError,
-                },
+                BrokerServer.CreateOptions(arguments.PipeName, arguments.ClientSid, arguments.TokenSha256,
+                    new ExpectedPeerPolicy(arguments.ClientPid, expectedClient, arguments.ClientSid)),
                 handler.CreateDispatcher(),
                 loggerFactory.CreateLogger<IpcServer>());
 

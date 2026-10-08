@@ -98,6 +98,13 @@ public sealed class BrokerOperationHandler(IApprovedPlanStore plans, IMachineEnv
     public static IpcError? MapError(Exception exception)
         => exception is BrokerRejectedException rejected ? new IpcError(rejected.Code, rejected.Message, null) : null;
 
+    /// <summary>
+    /// Requests outside the approved plan or with invalid changes are probing and end the session. A
+    /// concurrent change is an expected outcome of a legitimate request, so the session continues.
+    /// </summary>
+    public static bool IsRejection(Exception exception)
+        => exception is BrokerRejectedException { Code: not BrokerOperations.ConcurrentChangeCode };
+
     private BrokerStatus GetStatus(IpcDispatcher dispatcher)
         => new(isElevated(), IpcProtocol.Version, [.. dispatcher.Operations.Order(StringComparer.Ordinal)]);
 

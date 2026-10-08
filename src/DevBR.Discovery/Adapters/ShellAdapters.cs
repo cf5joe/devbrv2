@@ -13,6 +13,14 @@ public sealed class GitAdapter : ToolAdapter
 
     public override string DisplayName => "Git";
 
+    public override AdapterSupport Support => Declare(
+        "Git",
+        [new("2.30", "3.0")],
+        [@"%GIT_CONFIG_GLOBAL%", @"%USERPROFILE%\.gitconfig and its include.path files", @"%XDG_CONFIG_HOME%\git (or %USERPROFILE%\.config\git)",
+            "core.excludesfile / core.attributesfile targets", @"%ProgramFiles%\Git\etc\gitconfig (inventory only)"],
+        AdapterCapabilities.Inventory | AdapterCapabilities.Capture,
+        "Credential helper sign-in on first push or pull; .git-credentials only when explicitly included (encrypted)");
+
     protected override string ToolId => "git";
 
     protected override void Discover(AdapterScope s, CancellationToken cancellationToken)
@@ -76,6 +84,13 @@ public sealed class GitHubCliAdapter : ToolAdapter
 
     public override string DisplayName => "GitHub CLI";
 
+    public override AdapterSupport Support => Declare(
+        "GitHub CLI",
+        [new("2.40", "3.0")],
+        [@"%GH_CONFIG_DIR%", @"%APPDATA%\GitHub CLI"],
+        AdapterCapabilities.Capture,
+        AdapterPrerequisites.HostInstalled, "Run 'gh auth login' after restore; tokens in hosts.yml are excluded unless explicitly included (encrypted)");
+
     protected override string ToolId => "gh";
 
     protected override void Discover(AdapterScope s, CancellationToken cancellationToken)
@@ -114,6 +129,13 @@ public sealed partial class PowerShellAdapter : ToolAdapter
     public override string Id => "powershell";
 
     public override string DisplayName => "PowerShell";
+
+    public override AdapterSupport Support => Declare(
+        "PowerShell 7",
+        [new("7.2", "8.0")],
+        [@"%USERPROFILE%\Documents\PowerShell (PowerShell 7)", @"%USERPROFILE%\Documents\WindowsPowerShell (Windows PowerShell 5.1)", "Scripts dot-sourced or imported by path from a profile"],
+        AdapterCapabilities.Inventory | AdapterCapabilities.Capture,
+        AdapterPrerequisites.HostInstalled + " (PowerShell 7 profiles; Windows PowerShell 5.1 ships with Windows)", "Gallery modules reinstalled from the PowerShell Gallery");
 
     protected override string ToolId => "pwsh";
 
@@ -214,7 +236,13 @@ public sealed class WindowsTerminalAdapter : ToolAdapter
 
     public override string DisplayName => "Windows Terminal";
 
-    public override IReadOnlyList<string> SupportedVersions => ["1.18 and later"];
+    public override AdapterSupport Support => Declare(
+        "Windows Terminal",
+        [new("1.18", "2.0")],
+        [@"%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe (LocalState, RoamingState)", @"%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminalPreview_8wekyb3d8bbwe",
+            @"%LOCALAPPDATA%\Microsoft\Windows Terminal (unpackaged settings and Fragments)"],
+        AdapterCapabilities.Capture | AdapterCapabilities.StructuredMerge | AdapterCapabilities.PathRewrite,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.HostClosed);
 
     protected override string ToolId => "windows-terminal";
 
@@ -281,6 +309,13 @@ public sealed class WslAdapter : ToolAdapter
 
     public override string DisplayName => "WSL";
 
+    public override AdapterSupport Support => Declare(
+        "WSL",
+        [new("2.0", "3.0")],
+        [@"HKCU\Software\Microsoft\Windows\CurrentVersion\Lxss (distribution inventory)", @"%USERPROFILE%\.wslconfig"],
+        AdapterCapabilities.Inventory | AdapterCapabilities.Capture,
+        AdapterPrerequisites.HostInstalled, "Distributions are reinstalled (or imported from 'wsl --export') by the user");
+
     protected override string ToolId => "wsl";
 
     protected override void Discover(AdapterScope s, CancellationToken cancellationToken)
@@ -332,6 +367,13 @@ public sealed class DockerAdapter : ToolAdapter
 
     public override string DisplayName => "Docker";
 
+    public override AdapterSupport Support => Declare(
+        "Docker Desktop",
+        [new("4.30", "5.0")],
+        [@"%DOCKER_CONFIG%", @"%USERPROFILE%\.docker (config.json, contexts\meta, daemon.json)", @"%APPDATA%\Docker (Desktop settings)"],
+        AdapterCapabilities.Capture,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.HostClosed, "Run 'docker login' again; inline registry credentials are removed at capture");
+
     protected override string ToolId => "docker-desktop";
 
     protected override void Discover(AdapterScope s, CancellationToken cancellationToken)
@@ -374,6 +416,14 @@ public sealed class EnvironmentAdapter : ToolAdapter
     public override string Id => "environment";
 
     public override string DisplayName => "Windows environment";
+
+    public override AdapterSupport Support => Declare(
+        "Windows build",
+        [new("17763")],
+        [@"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", @"HKCU\Environment"],
+        AdapterCapabilities.Capture | AdapterCapabilities.StructuredMerge | AdapterCapabilities.PathRewrite,
+        "Administrator approval for machine variables", "Variables that look like credentials are excluded unless explicitly included (encrypted)",
+        "PATH entries are held back until their folders exist");
 
     protected override string ToolId => "windows";
 

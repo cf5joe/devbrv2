@@ -16,7 +16,7 @@ public sealed class IpcTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static IpcDispatcher CreateDispatcher(TaskCompletionSource<bool>? cancelled = null) => new IpcDispatcher()
+    internal static IpcDispatcher CreateDispatcher(TaskCompletionSource<bool>? cancelled = null) => new IpcDispatcher()
         .Register<EchoRequest, EchoResponse>("test.echo", (request, _, _) => Task.FromResult(new EchoResponse(request.Text)))
         .Register<EchoRequest, EchoResponse>("test.progress", async (request, context, _) =>
         {
@@ -42,7 +42,7 @@ public sealed class IpcTests
             return Empty.Value;
         });
 
-    private sealed class Harness : IAsyncDisposable
+    internal sealed class Harness : IAsyncDisposable
     {
         private readonly CancellationTokenSource _cts = new();
 
@@ -276,6 +276,6 @@ public sealed class IpcTests
         Assert.False(client.IsConnected);
     }
 
-    private static Task WriteJsonFrameAsync(Stream pipe, IpcEnvelope envelope)
+    internal static Task WriteJsonFrameAsync(Stream pipe, IpcEnvelope envelope)
         => FrameCodec.WriteAsync(pipe, JsonSerializer.SerializeToUtf8Bytes(envelope, IpcJson.Options), FrameCodec.DefaultMaxFrameBytes, Ct);
 }

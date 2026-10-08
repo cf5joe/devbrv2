@@ -32,7 +32,9 @@ prompt is simulated with a Yes/No question (the approved-effects check is the sa
 performs), and installations leave the traces a real installer would (an Add/Remove Programs entry and
 executable, or an `extensions.json` entry) without downloading anything.
 
-Build your own with `SimulatedMachineBuilder` (see `tests/DevBR.Tests/Discovery`).
+Build your own with `SimulatedMachineBuilder` (see `tests/DevBR.Tests/Discovery`). Its `osBuild` argument
+sets the Windows build (empty simulates one that cannot be read); `tests/DevBR.Tests/Restore/AdapterSupportTests.cs`
+builds machines with every adapter's host at verified, outdated and unreadable versions.
 
 ## Using them in the app (development builds only)
 

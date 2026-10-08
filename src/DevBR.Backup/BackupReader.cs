@@ -89,12 +89,17 @@ public sealed partial class BackupReader(IArchiveService archive)
             }
 
             var artifacts = ReadArtifacts(Path.Combine(catalog, "artifacts.ndjson"));
+            if (artifacts.Count != manifest.Totals.ArtifactCount)
+            {
+                throw new BackupFormatException("The artifact index does not match the artifact count the manifest declares.");
+            }
+
             var counts = CountEntries(Path.Combine(catalog, "entries.ndjson"), artifacts, manifest);
             var report = manifest.IndexSha256.ContainsKey(ArchiveContract.BackupReportPath)
                 ? Deserialize<BackupReport>(File.ReadAllBytes(Path.Combine(catalog, "reports", "backup-report.json")))
                 : null;
             var inventory = manifest.IndexSha256.ContainsKey(ArchiveContract.InventoryIndexPath)
-                ? File.ReadLines(Path.Combine(catalog, "inventory.ndjson")).LongCount(l => l.Length > 0)
+                ? BoundedLines(Path.Combine(catalog, "inventory.ndjson")).LongCount()
                 : 0;
 
             return new BackupOverview(
@@ -113,8 +118,7 @@ public sealed partial class BackupReader(IArchiveService archive)
     public static IReadOnlyList<ArchiveEntry> ReadEntries(BackupOverview overview, string key, int skip, int take)
     {
         var prefix = $"payload/{key}/";
-        return [.. File.ReadLines(Path.Combine(overview.CatalogFolder, "entries.ndjson"))
-            .Where(l => l.Length > 0)
+        return [.. BoundedLines(Path.Combine(overview.CatalogFolder, "entries.ndjson"))
             .Select(l => Deserialize<ArchiveEntry>(l))
             .Where(e => e.ArchivePath.StartsWith(prefix, StringComparison.Ordinal))
             .Skip(skip)
@@ -165,7 +169,7 @@ public sealed partial class BackupReader(IArchiveService archive)
         var keys = artifacts.ToDictionary(a => a.Key, a => a.Artifact.Id, StringComparer.Ordinal);
         var counts = new Dictionary<string, (long Count, long Bytes)>(StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        long total = 0;
+        long total = 0, bytes = 0;
 
         foreach (var line in BoundedLines(path))
         {
@@ -181,6 +185,11 @@ public sealed partial class BackupReader(IArchiveService archive)
                 throw new BackupFormatException($"The entry '{normalized}' does not belong to a listed artifact.");
             }
 
+            if (entry.EntryType is not (ArchiveEntryType.File or ArchiveEntryType.Directory) || entry.LinkTarget is not null)
+            {
+                throw new BackupFormatException($"The entry index describes '{normalized}' as a link, which DevBR backups never contain.");
+            }
+
             if (!seen.Add(normalized) || entry.Size < 0)
             {
                 throw new BackupFormatException($"The entry index lists '{normalized}' more than once or with an invalid size.");
@@ -191,8 +200,14 @@ public sealed partial class BackupReader(IArchiveService archive)
                 throw new BackupFormatException("The entry index has more entries than the manifest declares.");
             }
 
+            bytes = checked(bytes + entry.Size);
             var current = counts.GetValueOrDefault(parts[1]);
             counts[parts[1]] = entry.EntryType == ArchiveEntryType.File ? (current.Count + 1, current.Bytes + entry.Size) : current;
+        }
+
+        if (total != manifest.Totals.EntryCount || bytes != manifest.Totals.UncompressedBytes)
+        {
+            throw new BackupFormatException("The entry index does not match the entry count or size the manifest declares.");
         }
 
         return counts;
@@ -200,16 +215,24 @@ public sealed partial class BackupReader(IArchiveService archive)
 
     private static IEnumerable<string> BoundedLines(string path)
     {
-        foreach (var line in File.ReadLines(path))
+        using var lines = BoundedLineReader.ReadLines(path, MaxLineBytes).GetEnumerator();
+        while (true)
         {
-            if (line.Length > MaxLineBytes)
+            try
+            {
+                if (!lines.MoveNext())
+                {
+                    yield break;
+                }
+            }
+            catch (InvalidDataException)
             {
                 throw new BackupFormatException($"{Path.GetFileName(path)} contains an oversized record.");
             }
 
-            if (line.Length > 0)
+            if (lines.Current.Length > 0)
             {
-                yield return line;
+                yield return lines.Current;
             }
         }
     }
