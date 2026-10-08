@@ -137,6 +137,74 @@ internal static class Journal
     public static byte[] Utf8(string value) => Encoding.UTF8.GetBytes(value);
 }
 
+/// <summary>What a restore writes to one file: rewritten bytes (small) or a verified staged copy streamed as is.</summary>
+internal sealed record FileContent(byte[]? Bytes, string? StagedPath, string Sha)
+{
+    public void WriteTo(IMachineWriter writer, string target)
+    {
+        if (Bytes is not null)
+        {
+            writer.WriteFileAtomic(target, Bytes);
+            return;
+        }
+
+        using var input = new FileStream(StagedPath!, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
+        writer.WriteFileAtomic(target, input);
+    }
+}
+
+/// <summary>Forward-only reader that hashes everything read through it, so a file can be copied and checked in one pass.</summary>
+internal sealed class HashingReadStream(Stream inner) : Stream
+{
+    private readonly IncrementalHash _sha = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+
+    public override bool CanRead => true;
+
+    public override bool CanSeek => false;
+
+    public override bool CanWrite => false;
+
+    public override long Length => throw new NotSupportedException();
+
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+    /// <summary>Reads whatever the consumer left unread, then returns the journal form ("sha256:…") of the whole content.</summary>
+    public string Finish()
+    {
+        CopyTo(Null);
+        return "sha256:" + Convert.ToHexStringLower(_sha.GetHashAndReset());
+    }
+
+    public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+    public override int Read(Span<byte> buffer)
+    {
+        var read = inner.Read(buffer);
+        _sha.AppendData(buffer[..read]);
+        return read;
+    }
+
+    public override void Flush()
+    {
+    }
+
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+    public override void SetLength(long value) => throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _sha.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+}
+
 /// <summary>A target that no longer matches what preflight saw. Nothing was written for it.</summary>
 public sealed class TargetChangedException(string message) : Exception(message);
 

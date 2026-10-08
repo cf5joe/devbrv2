@@ -26,6 +26,14 @@ namespace DevBR.Restore.Execution;
 /// </summary>
 public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService archive, IRestoreJournal journal, IRollbackStore rollbackStore, ILogger<RestoreExecutor> logger)
 {
+    /// <summary>
+    /// The most a restore reads into memory for one file (structured merges, path rewrites, JSON checks); the same
+    /// limit preflight uses for comparison. Larger files are always streamed and handled as whole files.
+    /// </summary>
+    internal const long MaxBufferedBytes = 8L * 1024 * 1024;
+
+    private const long MaxPointerBytes = 64 * 1024;
+
     /// <summary>Jobs running in this process; recovery leaves them alone.</summary>
     internal static readonly ConcurrentDictionary<Guid, byte> ActiveJobs = new();
 
@@ -448,24 +456,26 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
 
                     var content = BackupContent(op);
                     CreateParents(op, Path.GetDirectoryName(o.Target));
-                    return Commit(op, new JournalIntent("file", o.ArtifactId, op.Title, o.Target, "User", "absent", Journal.Sha(content), null, false, false, true),
-                        () => Writer.WriteFileAtomic(o.Target, content));
+                    return Commit(op, new JournalIntent("file", o.ArtifactId, op.Title, o.Target, "User", "absent", content.Sha, null, false, false, true),
+                        () => content.WriteTo(Writer, o.Target));
                 }
 
                 case RestoreAction.ReplaceFile:
                 {
-                    var current = ExpectFile(o);
                     var content = BackupContent(op);
-                    var copy = SaveCopy(current);
-                    return Commit(op, new JournalIntent("file", o.ArtifactId, op.Title, o.Target, "User", o.ExpectedTargetState, Journal.Sha(content), copy, false, false, true),
-                        () => Writer.WriteFileAtomic(o.Target, content));
+                    var copy = SaveCurrentCopy(o);
+                    return Commit(op, new JournalIntent("file", o.ArtifactId, op.Title, o.Target, "User", o.ExpectedTargetState, content.Sha, copy, false, false, true),
+                        () => content.WriteTo(Writer, o.Target));
                 }
 
                 case RestoreAction.MergeStructuredSettings:
                 {
+                    // Preflight plans a merge only when both sides fit MaxBufferedBytes; anything larger here means the file changed.
                     var current = ExpectFile(o);
                     var profile = MergeProfile.For(o.ArtifactId, Path.GetFileName(o.Target)) ?? throw new InvalidDataException("No merge rules exist for this file.");
-                    var backupNode = JsonMerger.Parse(Staged(op)) ?? throw new InvalidDataException("The backed-up file is not valid JSON.");
+                    var staged = TargetProbe.ReadBoundedFile(StagedPath(op), MaxBufferedBytes)
+                        ?? throw new InvalidDataException("The backed-up file is too large to merge safely; restore it next to the existing file instead.");
+                    var backupNode = JsonMerger.Parse(staged) ?? throw new InvalidDataException("The backed-up file is not valid JSON.");
                     JsonMerger.RewritePaths(backupNode, profile, _rewriter);
                     var targetNode = JsonMerger.Parse(current) ?? throw new TargetChangedException($"{o.Target} is no longer valid JSON; nothing was merged.");
                     var (merged, _) = JsonMerger.Merge(targetNode, backupNode, profile, preferBackup: o.ConflictDecision == ConflictDecision.UseBackup);
@@ -534,15 +544,48 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
             return intent;
         }
 
+        /// <summary>The current content of a file about to be merged: small by construction, and checked against the plan.</summary>
         private byte[] ExpectFile(RestoreOperation o)
         {
-            var state = TargetProbe.FileState(Target, o.Target);
+            if (!Target.FileSystem.FileExists(o.Target))
+            {
+                throw new TargetChangedException($"{o.Target} changed after the plan was made. Nothing was written to it.");
+            }
+
+            var current = TargetProbe.ReadBounded(Target, o.Target, MaxBufferedBytes);
+            if (current is null || !string.Equals(Journal.Sha(current), o.ExpectedTargetState, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new TargetChangedException($"{o.Target} changed after the plan was made. Nothing was written to it.");
+            }
+
+            return current;
+        }
+
+        /// <summary>
+        /// Streams the file about to be replaced into the rollback store while hashing it, so the copy and the
+        /// check against the plan come from the same read and the file is never held in memory.
+        /// </summary>
+        private string SaveCurrentCopy(RestoreOperation o)
+        {
+            if (!Target.FileSystem.FileExists(o.Target))
+            {
+                throw new TargetChangedException($"{o.Target} changed after the plan was made. Nothing was written to it.");
+            }
+
+            string copy, state;
+            using (var input = Target.FileSystem.OpenRead(o.Target))
+            using (var hashing = new HashingReadStream(input))
+            {
+                copy = owner.rollbackStore.Save(jobId, hashing);
+                state = hashing.Finish();
+            }
+
             if (!string.Equals(state, o.ExpectedTargetState, StringComparison.OrdinalIgnoreCase))
             {
                 throw new TargetChangedException($"{o.Target} changed after the plan was made. Nothing was written to it.");
             }
 
-            return TargetProbe.ReadAll(Target, o.Target);
+            return copy;
         }
 
         private void CheckVariable(RestoreOperation o, string? current)
@@ -569,23 +612,30 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
             return owner.rollbackStore.Save(jobId, stream);
         }
 
-        private byte[] Staged(PlannedOperation op)
+        private string StagedPath(PlannedOperation op)
             => op.ArchivePath is not null && _staged.TryGetValue(op.ArchivePath, out var path)
-                ? File.ReadAllBytes(path)
+                ? path
                 : throw new InvalidDataException("The file was not extracted from the backup.");
 
-        /// <summary>The backed-up file with declared path fields rewritten for this computer.</summary>
-        private byte[] BackupContent(PlannedOperation op)
+        /// <summary>
+        /// The backed-up file with declared path fields rewritten for this computer. Only files with merge rules
+        /// that fit <see cref="MaxBufferedBytes"/> are read into memory (as in preflight); everything else is
+        /// streamed from the verified staged copy unchanged.
+        /// </summary>
+        private FileContent BackupContent(PlannedOperation op)
         {
-            var bytes = Staged(op);
+            var path = StagedPath(op);
+            var verbatim = new FileContent(null, path, "sha256:" + op.Sha256!.ToLowerInvariant());
             var profile = MergeProfile.For(op.Operation.ArtifactId, Path.GetFileName(op.Operation.Target));
-            if (profile is null || JsonMerger.Parse(bytes) is not { } node || JsonMerger.RewritePaths(node, profile, _rewriter).Count == 0)
+            if (profile is null || TargetProbe.ReadBoundedFile(path, MaxBufferedBytes) is not { } bytes
+                || JsonMerger.Parse(bytes) is not { } node || JsonMerger.RewritePaths(node, profile, _rewriter).Count == 0)
             {
-                return bytes;
+                return verbatim;
             }
 
             // Keep comments and layout: apply only the rewritten fields.
-            return JsoncEditor.Apply(bytes, node) ?? JsoncEditor.Serialize(node);
+            var rewritten = JsoncEditor.Apply(bytes, node) ?? JsoncEditor.Serialize(node);
+            return new FileContent(rewritten, null, Journal.Sha(rewritten));
         }
 
         // --- Repositories --------------------------------------------------------------------------------
@@ -609,7 +659,8 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
             var contents = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in entries.Where(e => e.EntryType == ArchiveEntryType.File && RestorePlanner.IsGitPointer(e.RelativePath)))
             {
-                if (_staged.TryGetValue(entry.ArchivePath, out var staged) && RewritePointer(entry.RelativePath, File.ReadAllBytes(staged)) is { } rewritten)
+                if (_staged.TryGetValue(entry.ArchivePath, out var staged) && TargetProbe.ReadBoundedFile(staged, MaxPointerBytes) is { } pointer
+                    && RewritePointer(entry.RelativePath, pointer) is { } rewritten)
                 {
                     contents[entry.ArchivePath] = rewritten;
                 }
@@ -618,9 +669,22 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
             var manifest = new RepositoryManifest([.. entries.Select(e => new RepositoryManifestEntry(e.RelativePath, e.EntryType == ArchiveEntryType.Directory,
                 e.EntryType == ArchiveEntryType.Directory ? null : contents.TryGetValue(e.ArchivePath, out var c) ? Journal.Sha(c) : "sha256:" + e.Sha256!.ToLowerInvariant()))]);
             string copy;
-            using (var stream = new MemoryStream(JsonSerializer.SerializeToUtf8Bytes(manifest, Journal.Json)))
+            var manifestFile = Path.Combine(_stagingFolder ?? Request.WorkFolder, $"manifest-{Guid.NewGuid():N}.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(manifestFile)!);
+            try
             {
+                // A repository can list a million files: serialize through a private file rather than one large buffer.
+                using (var output = new FileStream(manifestFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16))
+                {
+                    JsonSerializer.Serialize(output, manifest, Journal.Json);
+                }
+
+                using var stream = new FileStream(manifestFile, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
                 copy = owner.rollbackStore.Save(jobId, stream);
+            }
+            finally
+            {
+                File.Delete(manifestFile);
             }
 
             CreateParents(op, Path.GetDirectoryName(destination));
@@ -821,7 +885,8 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
                     case "file":
                         var state = TargetProbe.FileState(Target, intent.Target);
                         level = state != intent.After ? VerificationLevel.VerificationFailed
-                            : intent.Target.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && JsonMerger.Parse(TargetProbe.ReadAll(Target, intent.Target)) is null
+                            : intent.Target.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && TargetProbe.ReadBounded(Target, intent.Target, MaxBufferedBytes) is { } json
+                                && JsonMerger.Parse(json) is null
                                 ? VerificationLevel.VerificationFailed
                                 : VerificationLevel.ConfigurationApplied;
                         note = level == VerificationLevel.VerificationFailed ? "The file on disk does not match what was written; another program may have changed it." : null;

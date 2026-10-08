@@ -34,11 +34,39 @@ internal static class TargetProbe
         }
     }
 
-    public static byte[] ReadAll(IMachine machine, string path)
+    /// <summary>The whole file, or null when it is larger than <paramref name="maxBytes"/> (it is never buffered beyond that).</summary>
+    public static byte[]? ReadBounded(IMachine machine, string path, long maxBytes)
     {
         using var stream = machine.FileSystem.OpenRead(path);
+        return ReadBounded(stream, maxBytes);
+    }
+
+    public static byte[]? ReadBoundedFile(string path, long maxBytes)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16, FileOptions.SequentialScan);
+        return ReadBounded(stream, maxBytes);
+    }
+
+    public static byte[]? ReadBounded(Stream stream, long maxBytes)
+    {
+        if (stream.CanSeek && stream.Length > maxBytes)
+        {
+            return null;
+        }
+
         using var buffer = new MemoryStream();
-        stream.CopyTo(buffer);
+        var chunk = new byte[81920];
+        int read;
+        while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+        {
+            if (buffer.Length + read > maxBytes)
+            {
+                return null;
+            }
+
+            buffer.Write(chunk, 0, read);
+        }
+
         return buffer.ToArray();
     }
 
