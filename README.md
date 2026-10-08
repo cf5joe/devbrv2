@@ -8,7 +8,8 @@ The full product plan is in [devbr-plan.md](devbr-plan.md).
 creation and archive inspection), 4 (restore planning and preflight) and 5 (restore execution, verification,
 rollback and recovery) are implemented. Hardening and the two-machine acceptance pass follow in Phase 6.
 The archive format is described in [docs/ARCHIVE-FORMAT.md](docs/ARCHIVE-FORMAT.md). Discovery and backup can run
-against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md).
+against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md). Supported integrations, their
+verified versions and the unknown-version fallback are listed in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
 
 ## Solution layout
 
