@@ -5,7 +5,11 @@ using DevBR.Application.Archive;
 
 namespace DevBR.App.Services;
 
-public sealed record SelfTestStep(string Name, bool Passed, string Detail);
+public sealed record SelfTestStep(string Name, bool Passed, string Detail)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Name}: {(Passed ? "pass" : "fail")}, {Detail}";
+}
 
 /// <summary>
 /// Exercises the archive worker end to end on this machine: Unicode paths, empty folders, a multi-MB

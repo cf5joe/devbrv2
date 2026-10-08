@@ -4,7 +4,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:DevBR.App.ViewModels"
-             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:OverviewViewModel}">
+             xmlns:controls="clr-namespace:DevBR.App.Controls"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:OverviewViewModel}"
+             AutomationProperties.AutomationId="OverviewPage">
     <StackPanel>
         <TextBlock Text="OVERVIEW" Style="{StaticResource Text.Overline}" />
         <TextBlock Text="Move your developer setup to another PC" Style="{StaticResource Text.PageTitle}" Margin="0,6,0,0" />
@@ -16,7 +18,7 @@
                     AutomationProperties.Name="Discover this computer">
                 <StackPanel>
                     <Border Width="44" Height="44" CornerRadius="10" Background="{DynamicResource DevBR.AccentSubtle}" HorizontalAlignment="Left">
-                        <TextBlock Text="&#xE721;" Style="{StaticResource Text.Icon}" FontSize="20" Foreground="{DynamicResource DevBR.AccentText}" HorizontalAlignment="Center" />
+                        <controls:Glyph Text="&#xE721;" Style="{StaticResource Text.Icon}" FontSize="20" Foreground="{DynamicResource DevBR.AccentText}" HorizontalAlignment="Center" />
                     </Border>
                     <TextBlock Text="Discover this computer" Style="{StaticResource Text.SectionTitle}" Margin="0,16,0,0" />
                     <TextBlock Style="{StaticResource Text.Muted}" Margin="0,6,0,0"
@@ -27,7 +29,7 @@
                     AutomationProperties.Name="Open a backup">
                 <StackPanel>
                     <Border Width="44" Height="44" CornerRadius="10" Background="{DynamicResource DevBR.AccentSubtle}" HorizontalAlignment="Left">
-                        <TextBlock Text="&#xE8E5;" Style="{StaticResource Text.Icon}" FontSize="20" Foreground="{DynamicResource DevBR.AccentText}" HorizontalAlignment="Center" />
+                        <controls:Glyph Text="&#xE8E5;" Style="{StaticResource Text.Icon}" FontSize="20" Foreground="{DynamicResource DevBR.AccentText}" HorizontalAlignment="Center" />
                     </Border>
                     <TextBlock Text="Open a backup" Style="{StaticResource Text.SectionTitle}" Margin="0,16,0,0" />
                     <TextBlock Style="{StaticResource Text.Muted}" Margin="0,6,0,0"
@@ -49,7 +51,7 @@
                         <Border Style="{StaticResource Badge}" Padding="12,5">
                             <TextBlock Text="{Binding Name}" FontSize="13" />
                         </Border>
-                        <TextBlock x:Name="Arrow" Text="&#xE76C;" Style="{StaticResource Text.Icon}" FontSize="10" Foreground="{DynamicResource DevBR.TextMuted}" Margin="8,0" />
+                        <controls:Glyph x:Name="Arrow" Text="&#xE76C;" Style="{StaticResource Text.Icon}" FontSize="10" Foreground="{DynamicResource DevBR.TextMuted}" Margin="8,0" />
                     </StackPanel>
                     <DataTemplate.Triggers>
                         <DataTrigger Binding="{Binding IsLast}" Value="True">

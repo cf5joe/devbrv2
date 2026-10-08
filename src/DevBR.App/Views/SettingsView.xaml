@@ -6,7 +6,8 @@
              xmlns:vm="clr-namespace:DevBR.App.ViewModels"
              xmlns:services="clr-namespace:DevBR.App.Services"
              xmlns:controls="clr-namespace:DevBR.App.Controls"
-             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:SettingsViewModel}">
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:SettingsViewModel}"
+             AutomationProperties.AutomationId="SettingsPage">
     <StackPanel>
         <TextBlock Text="SETTINGS" Style="{StaticResource Text.Overline}" />
         <TextBlock Text="Settings" Style="{StaticResource Text.PageTitle}" Margin="0,6,0,0" />
@@ -110,7 +111,7 @@
                 <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                     <Button Style="{StaticResource Button.Secondary}" Command="{Binding TestBrokerCommand}" AutomationProperties.Name="Test privileged helper. Requires administrator approval.">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xEA18;" Style="{StaticResource Text.Icon}" FontSize="13" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
+                            <controls:Glyph Text="&#xEA18;" Style="{StaticResource Text.Icon}" FontSize="13" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
                             <TextBlock Text="Test privileged helper" />
                         </StackPanel>
                     </Button>
@@ -140,7 +141,7 @@
                                     <ColumnDefinition Width="320" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="Icon" Text="&#xE930;" Style="{StaticResource Text.Icon}" FontSize="14" Foreground="{DynamicResource DevBR.Success}" Margin="0,0,8,0" />
+                                <controls:Glyph x:Name="Icon" Text="&#xE930;" Style="{StaticResource Text.Icon}" FontSize="14" Foreground="{DynamicResource DevBR.Success}" Margin="0,0,8,0" />
                                 <TextBlock x:Name="Result" Grid.Column="1" Text="Pass" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="2" Text="{Binding Name}" Style="{StaticResource Text.Body}" />
                                 <TextBlock Grid.Column="3" Text="{Binding Detail}" Style="{StaticResource Text.Muted}" />

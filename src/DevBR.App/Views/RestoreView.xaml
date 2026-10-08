@@ -5,7 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:DevBR.App.ViewModels"
              xmlns:controls="clr-namespace:DevBR.App.Controls"
-             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:RestoreViewModel}">
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:RestoreViewModel}"
+             AutomationProperties.AutomationId="RestorePage">
     <StackPanel>
         <TextBlock Text="RESTORE" Style="{StaticResource Text.Overline}" />
         <TextBlock Text="Restore from a backup" Style="{StaticResource Text.PageTitle}" Margin="0,6,0,0" />
@@ -18,9 +19,9 @@
                 <TextBlock Text="Choose a backup file" Style="{StaticResource Text.SectionTitle}" />
                 <TextBlock Style="{StaticResource Text.Muted}" Margin="0,6,0,20"
                            Text="DevBR reads the backup's index and manifest in an isolated background process. Archive contents are never executed." />
-                <Button Style="{StaticResource Button.Primary}" Command="{Binding BrowseCommand}" HorizontalAlignment="Left">
+                <Button Style="{StaticResource Button.Primary}" Command="{Binding BrowseCommand}" HorizontalAlignment="Left" AutomationProperties.Name="Browse for a backup">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE8E5;" Style="{StaticResource Text.Icon}" Foreground="{DynamicResource DevBR.AccentForeground}" Margin="0,0,10,0" />
+                        <controls:Glyph Text="&#xE8E5;" Style="{StaticResource Text.Icon}" Foreground="{DynamicResource DevBR.AccentForeground}" Margin="0,0,10,0" />
                         <TextBlock Text="Browse for a backup…" />
                     </StackPanel>
                 </Button>
@@ -40,7 +41,7 @@
         <Border Style="{StaticResource Card}" Margin="0,28,0,0" Visibility="{Binding IsNeedsPassword, Converter={StaticResource BoolToVisibility}}">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="&#xE72E;" Style="{StaticResource Text.Icon}" FontSize="18" Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,12,0" />
+                    <controls:Glyph Text="&#xE72E;" Style="{StaticResource Text.Icon}" FontSize="18" Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,12,0" />
                     <TextBlock Text="This backup is encrypted" Style="{StaticResource Text.SectionTitle}" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource Text.Muted}" Margin="0,6,0,16"
@@ -84,7 +85,7 @@
                         </StackPanel>
                     </DockPanel>
                     <Rectangle Style="{StaticResource Divider}" />
-                    <ItemsControl ItemsSource="{Binding Details}" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding Details}" Focusable="False" AutomationProperties.Name="Backup details">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type vm:DetailRow}">
                                 <Grid Margin="0,0,0,10">
@@ -101,7 +102,7 @@
                 </StackPanel>
             </Border>
 
-            <ItemsControl ItemsSource="{Binding CaptureWarnings}" Margin="0,16,0,0" Focusable="False">
+            <ItemsControl ItemsSource="{Binding CaptureWarnings}" Margin="0,16,0,0" Focusable="False" AutomationProperties.Name="Warnings recorded during the backup">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <controls:InfoBar Severity="Warning" Title="Captured with a warning" Message="{Binding}" Margin="0,0,0,8" />
@@ -129,7 +130,7 @@
                             <DataTemplate DataType="{x:Type vm:BackupArtifactRow}">
                                 <StackPanel Margin="4,2">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="Icon" Text="&#xE7BA;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
+                                        <controls:Glyph x:Name="Icon" Text="&#xE7BA;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>
                                     <TextBlock Style="{StaticResource Text.Caption}" Margin="20,0,0,0">
@@ -150,7 +151,7 @@
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Top" DataContext="{Binding SelectedArtifact}" Margin="0,0,0,8">
                             <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" TextTrimming="CharacterEllipsis" />
-                            <ItemsControl ItemsSource="{Binding Warnings}" Focusable="False">
+                            <ItemsControl ItemsSource="{Binding Warnings}" Focusable="False" AutomationProperties.Name="Warnings for the selected item">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource DevBR.Warning}" />
@@ -267,7 +268,7 @@
                                 <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Label}" />
                                 <TextBlock Text="{Binding Description}" Style="{StaticResource Text.Caption}" Margin="0,2,0,8" />
                                 <Border Style="{StaticResource Card}" Padding="0">
-                                    <ItemsControl ItemsSource="{Binding Rows}" Focusable="False">
+                                    <ItemsControl ItemsSource="{Binding Rows}" Focusable="False" AutomationProperties.Name="{Binding Title}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="{x:Type vm:OperationRow}">
                                                 <Border BorderBrush="{DynamicResource DevBR.Border}" BorderThickness="0,0,0,1" Padding="16,10">
@@ -287,7 +288,7 @@
                                                                 <TextBlock Text="{Binding Title}" Style="{StaticResource Text.Body}" FontWeight="SemiBold" Margin="0,0,8,2" TextTrimming="CharacterEllipsis" />
                                                                 <Border Style="{StaticResource Badge}" Padding="6,0" Margin="0,0,6,2" Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}}">
                                                                     <StackPanel Orientation="Horizontal">
-                                                                        <TextBlock Text="&#xEA18;" Style="{StaticResource Text.Icon}" FontSize="10" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,4,0" />
+                                                                        <controls:Glyph Text="&#xEA18;" Style="{StaticResource Text.Icon}" FontSize="10" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,4,0" />
                                                                         <TextBlock Text="Administrator" FontSize="11" />
                                                                     </StackPanel>
                                                                 </Border>
@@ -314,21 +315,21 @@
                 </ItemsControl>
 
                 <Expander Header="Paths rewritten for this computer" Margin="0,0,0,8" Visibility="{Binding Rewrites.Count, Converter={StaticResource HasValue}}">
-                    <ItemsControl ItemsSource="{Binding Rewrites}" Margin="0,8,0,0" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding Rewrites}" Margin="0,8,0,0" Focusable="False" AutomationProperties.Name="Paths rewritten for this computer">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" /></DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </Expander>
                 <Expander Header="MCP servers in this backup" Margin="0,0,0,8" Visibility="{Binding McpServers.Count, Converter={StaticResource HasValue}}">
-                    <ItemsControl ItemsSource="{Binding McpServers}" Margin="0,8,0,0" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding McpServers}" Margin="0,8,0,0" Focusable="False" AutomationProperties.Name="MCP servers in this backup">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" /></DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </Expander>
                 <Expander Header="Software to reinstall yourself" Margin="0,0,0,8" Visibility="{Binding Reinstall.Count, Converter={StaticResource HasValue}}">
-                    <ItemsControl ItemsSource="{Binding Reinstall}" Margin="0,8,0,0" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding Reinstall}" Margin="0,8,0,0" Focusable="False" AutomationProperties.Name="Software to reinstall yourself">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" Margin="0,0,0,4" /></DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -341,7 +342,7 @@
                     <Button Style="{StaticResource Button.Secondary}" Content="Approve this plan" Command="{Binding ApproveCommand}" />
                     <Button Style="{StaticResource Button.Primary}" Command="{Binding RestoreNowCommand}" Margin="8,0,0,0" AutomationProperties.Name="Restore now">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE777;" Style="{StaticResource Text.Icon}" Foreground="{DynamicResource DevBR.AccentForeground}" Margin="0,0,10,0" />
+                            <controls:Glyph Text="&#xE777;" Style="{StaticResource Text.Icon}" Foreground="{DynamicResource DevBR.AccentForeground}" Margin="0,0,10,0" />
                             <TextBlock Text="Restore now" />
                         </StackPanel>
                     </Button>

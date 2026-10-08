@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    UI automation tests (FlaUI / UIA3). They drive the built DevBR.exe on a simulated machine with an
+    isolated data root, so they are opt-in: every test is skipped unless DEVBR_UI_TESTS=1.
+    Run: set DEVBR_UI_TESTS=1, then dotnet test (project tests/DevBR.UiTests).
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>DevBR.UiTests</RootNamespace>
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Build order only: the tests launch DevBR.exe from the app's own output folder. -->
+    <ProjectReference Include="..\..\src\DevBR.App\DevBR.App.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FlaUI.Core" />
+    <PackageReference Include="FlaUI.UIA3" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="DevBR.Configuration" Value="$(Configuration)" />
+  </ItemGroup>
+</Project>

@@ -4,7 +4,11 @@ using DevBR.Infrastructure;
 
 namespace DevBR.App.ViewModels;
 
-public sealed record JourneyStep(string Name, bool IsLast);
+public sealed record JourneyStep(string Name, bool IsLast)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => Name;
+}
 
 public sealed partial class OverviewViewModel(Navigator navigator, RestoreViewModel restore, AppPaths paths) : PageViewModel
 {

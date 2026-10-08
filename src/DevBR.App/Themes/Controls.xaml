@@ -19,7 +19,7 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="Icon" Text="&#xE946;" FontFamily="{StaticResource DevBR.IconFontFamily}" FontSize="16"
+                            <controls:Glyph x:Name="Icon" Text="&#xE946;" FontFamily="{StaticResource DevBR.IconFontFamily}" FontSize="16"
                                        Foreground="{DynamicResource DevBR.AccentText}" Margin="0,2,12,0" VerticalAlignment="Top" />
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="{TemplateBinding Title}" Style="{StaticResource Text.Label}" />
@@ -41,7 +41,7 @@
                             <ContentPresenter Grid.Column="2" Content="{TemplateBinding ActionContent}" VerticalAlignment="Center" Margin="12,0,0,0" />
                             <Button x:Name="Close" Grid.Column="3" Style="{StaticResource Button.Subtle}" Command="{TemplateBinding CloseCommand}"
                                     AutomationProperties.Name="Dismiss" ToolTip="Dismiss" Margin="8,-4,-8,-4" VerticalAlignment="Top">
-                                <TextBlock Text="&#xE711;" Style="{StaticResource Text.Icon}" FontSize="12" />
+                                <controls:Glyph Text="&#xE711;" Style="{StaticResource Text.Icon}" FontSize="12" />
                             </Button>
                         </Grid>
                     </Border>

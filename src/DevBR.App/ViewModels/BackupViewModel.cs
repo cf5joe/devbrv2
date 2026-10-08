@@ -26,17 +26,35 @@ public sealed record StepIndicator(int Number, string Title, string State)
     public bool IsDone => State == "Done";
 
     public string AccessibleName => $"Step {Number}: {Title}, {State.ToLowerInvariant()}";
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => AccessibleName;
 }
 
-public sealed record SelectedItemSummary(string Owner, string Name, string? Badge);
+public sealed record SelectedItemSummary(string Owner, string Name, string? Badge)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => Badge is null ? $"{Owner}: {Name}" : $"{Owner}: {Name}, {Badge}";
+}
 
-public sealed record FindingRow(InfoSeverity Severity, string Title, string? Remediation);
+public sealed record FindingRow(InfoSeverity Severity, string Title, string? Remediation)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Severity}: {Title}";
+}
 
-public sealed record CaptureRow(string Name, string Owner, string Detail, string? Status);
+public sealed record CaptureRow(string Name, string Owner, string Detail, string? Status)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => string.Join(", ", new[] { $"{Owner}: {Name}", Detail, Status }.Where(s => !string.IsNullOrEmpty(s)));
+}
 
 public sealed record ResultRow(string Name, string Status, string Detail, IReadOnlyList<string> Warnings)
 {
     public bool IsComplete => Status == "Complete";
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Name}: {Status}, {Detail}";
 }
 
 public sealed partial class ExclusionRuleRow(ExclusionRule rule, Action changed) : ObservableObject
@@ -49,6 +67,9 @@ public sealed partial class ExclusionRuleRow(ExclusionRule rule, Action changed)
     public partial bool Enabled { get; set; } = rule.Enabled;
 
     public ExclusionRule ToRule() => rule with { Enabled = Enabled };
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => FolderName;
 
     partial void OnEnabledChanged(bool value) => changed();
 }
@@ -71,7 +92,10 @@ public sealed partial class BackupViewModel : PageViewModel
     private readonly IArchiveService _archive;
     private readonly ActivityStore _activity;
     private readonly ILoggerFactory _loggers;
+    private readonly ThroughputEstimator _throughput = new();
     private CancellationTokenSource? _work;
+    private OperationStage? _runStage;
+    private bool _cancelling;
     private SecretText? _password;
     private string? _passwordConfirmation;
 
@@ -569,7 +593,10 @@ public sealed partial class BackupViewModel : PageViewModel
     [RelayCommand(CanExecute = nameof(IsRunning))]
     private void Cancel()
     {
+        // Acknowledged at once; later progress no longer overwrites it while the run reaches a safe point.
+        _cancelling = true;
         RunStage = "Cancelling — finishing the current file…";
+        RunCounts = null;
         _work?.Cancel();
     }
 
@@ -597,14 +624,25 @@ public sealed partial class BackupViewModel : PageViewModel
         ResultRows.Clear();
         RunIndeterminate = true;
         RunStage = "Starting…";
+        RunCounts = null;
+        RunItem = null;
+        _cancelling = false;
+        _runStage = null;
+        _throughput.Reset();
 
         var options = new BackupRunOptions(OutputPath, ScratchFolder, Compression, Encrypt ? _password : null, AllowOverwrite);
-        var progress = new Progress<OperationEvent>(OnProgress);
+        var plan = Plan;
 
         try
         {
             var runner = new BackupRunner(_archive, _loggers.CreateLogger<BackupRunner>());
-            var result = await runner.RunAsync(Plan, options, progress, cts.Token);
+            BackupResult result;
+            using (var progress = new ThrottledProgress<OperationEvent>(OnProgress))
+            {
+                // Staging copies and hashes files: keep it off the UI thread.
+                result = await Task.Run(() => runner.RunAsync(plan, options, progress, cts.Token), CancellationToken.None);
+            }
+
             ShowResult(result);
             await _activity.AddAsync(
                 result.Outcome is BackupOutcome.Succeeded or BackupOutcome.SucceededWithWarnings ? EventSeverity.Information : EventSeverity.Warning,
@@ -620,6 +658,17 @@ public sealed partial class BackupViewModel : PageViewModel
 
     private void OnProgress(OperationEvent e)
     {
+        if (_cancelling)
+        {
+            return;
+        }
+
+        if (_runStage != e.Stage)
+        {
+            _runStage = e.Stage;
+            _throughput.Reset();
+        }
+
         RunStage = e.Stage switch
         {
             OperationStage.Staging => "Copying selected files",
@@ -646,18 +695,20 @@ public sealed partial class BackupViewModel : PageViewModel
             parts.Add($"{Formatting.Bytes(e.BytesProcessed)} of {Formatting.Bytes(bytes)}");
         }
 
+        // Throughput and time left only from measured progress of a determinate stage, never a guess.
+        var estimate = e.BytesTotal is > 0 ? _throughput.Add(e.Elapsed, e.BytesProcessed, e.BytesTotal) : null;
         if (e.Elapsed > TimeSpan.Zero)
         {
-            parts.Add($"{e.Elapsed:mm\\:ss} elapsed");
-            if (e.BytesProcessed > 0 && e.Stage == OperationStage.Staging)
-            {
-                parts.Add($"{Formatting.Bytes((long)(e.BytesProcessed / e.Elapsed.TotalSeconds))}/s");
-            }
+            parts.Add($"{Formatting.Elapsed(e.Elapsed)} elapsed");
         }
 
-        if (e.EstimatedRemaining is { } eta && e.EtaConfidence != EtaConfidence.None)
+        if (estimate is not null)
         {
-            parts.Add(e.EtaConfidence == EtaConfidence.High ? $"about {eta:mm\\:ss} left" : $"roughly {eta:mm\\:ss} left");
+            parts.Add($"{Formatting.Bytes((long)estimate.BytesPerSecond)}/s");
+            if (estimate.Remaining is { } remaining)
+            {
+                parts.Add(Formatting.TimeLeft(remaining));
+            }
         }
 
         RunCounts = string.Join(" · ", parts);
