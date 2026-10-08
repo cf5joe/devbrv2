@@ -4,9 +4,12 @@ Portable Windows 11 x64 application that discovers a developer's environment, cr
 backup, and restores supported configuration and personal development assets on another computer.
 The full product plan is in [devbr-plan.md](devbr-plan.md).
 
-**Status:** Phases 1 (foundation and portable shell), 2 (discovery and migration catalog), 3 (backup
-creation and archive inspection), 4 (restore planning and preflight) and 5 (restore execution, verification,
-rollback and recovery) are implemented. Hardening and the two-machine acceptance pass follow in Phase 6.
+![DevBR overview page](docs/images/overview.png)
+
+**Status:** Phases 1–5 (foundation, discovery, backup, restore planning, restore execution and recovery) are
+implemented, and most of Phase 6 (hardening, performance, release tooling) is done; the clean-VM and two-machine
+acceptance pass, code signing and full-scale validation remain. See [devbr-status.md](devbr-status.md) for details
+and next steps.
 The archive format is described in [docs/ARCHIVE-FORMAT.md](docs/ARCHIVE-FORMAT.md). Discovery and backup can run
 against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md). Supported integrations, their
 verified versions and the unknown-version fallback are listed in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
