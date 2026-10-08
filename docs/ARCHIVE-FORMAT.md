@@ -31,7 +31,11 @@ computer or user.
 - When a backup is opened, only the indexes are extracted (into a private folder) and each is checked
   against the SHA-256 in `manifest.json`. Every entry path is validated (no traversal, absolute paths,
   drive letters, alternate data streams, reserved device names or case collisions) and every record must
-  belong to a listed artifact.
+  belong to a listed artifact. Entry and artifact counts and the total size must equal the manifest's
+  totals, and index records are read line by line with a fixed size limit.
+- Version 1 archives never contain symbolic links or junctions. Archive entries flagged as links, index
+  records with a link type or target, and extraction through an existing junction or link below the
+  destination folder are all rejected.
 
 Hashes detect corruption; they do not prove who made a backup. Every archive is treated as untrusted.
 
