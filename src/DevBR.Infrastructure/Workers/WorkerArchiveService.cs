@@ -13,8 +13,41 @@ public sealed class WorkerArchiveService(WorkerProcessHost host) : IArchiveServi
     public Task<ArchiveInspection> InspectAsync(ArchiveInspectRequest request, CancellationToken cancellationToken)
         => CallAsync<ArchiveInspectRequest, ArchiveInspection>(WorkerOperations.InspectArchive, request, null, cancellationToken);
 
-    public Task<ArchiveExtractResult> ExtractSelectedAsync(ArchiveExtractRequest request, IProgress<ArchiveProgress>? progress, CancellationToken cancellationToken)
-        => CallAsync<ArchiveExtractRequest, ArchiveExtractResult>(WorkerOperations.ExtractArchive, request, progress, cancellationToken);
+    public async Task<ArchiveExtractResult> ExtractSelectedAsync(ArchiveExtractRequest request, IProgress<ArchiveProgress>? progress, CancellationToken cancellationToken)
+    {
+        if (!SpooledExtract.ShouldSpool(request))
+        {
+            return await CallAsync<ArchiveExtractRequest, ArchiveExtractResult>(WorkerOperations.ExtractArchive, request, progress, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Beside the destination, which callers already place in a private work or scratch folder.
+        var spool = $"{Path.TrimEndingDirectorySeparator(Path.GetFullPath(request.DestinationDirectory))}.spool-{Guid.NewGuid():N}";
+        Directory.CreateDirectory(spool);
+        try
+        {
+            string? list = null;
+            if (request.EntryPaths is not null)
+            {
+                list = Path.Combine(spool, "entries.txt");
+                SpooledExtract.WriteEntryList(list, request.EntryPaths);
+            }
+
+            var results = Path.Combine(spool, "results.ndjson");
+            var outcome = await CallAsync<SpooledExtractRequest, SpooledExtractResult>(SpooledExtract.Operation,
+                new SpooledExtractRequest(request.ArchivePath, request.Password, request.DestinationDirectory, list, results), progress, cancellationToken).ConfigureAwait(false);
+            return new ArchiveExtractResult(SpooledExtract.ReadResults(results, outcome.Files), outcome.Bytes);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(spool, recursive: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+    }
 
     public async Task<WorkerStatus> PingAsync(CancellationToken cancellationToken)
     {

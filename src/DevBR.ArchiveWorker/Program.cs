@@ -5,6 +5,7 @@ using DevBR.Application.Archive;
 using DevBR.Archive;
 using DevBR.Infrastructure;
 using DevBR.Infrastructure.Logging;
+using DevBR.Infrastructure.Workers;
 using DevBR.Ipc;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -67,7 +68,9 @@ internal static class Program
                 .Register<ArchiveInspectRequest, ArchiveInspection>(WorkerOperations.InspectArchive, (request, _, ct) =>
                     archive.InspectAsync(request, ct))
                 .Register<ArchiveExtractRequest, ArchiveExtractResult>(WorkerOperations.ExtractArchive, (request, context, ct) =>
-                    archive.ExtractSelectedAsync(request, ProgressSink(context), ct));
+                    archive.ExtractSelectedAsync(request, ProgressSink(context), ct))
+                .Register<SpooledExtractRequest, SpooledExtractResult>(SpooledExtract.Operation, (request, context, ct) =>
+                    SpooledExtract.RunAsync(archive, request, ProgressSink(context), ct));
 
             using var identity = WindowsIdentity.GetCurrent();
             var server = new IpcServer(
