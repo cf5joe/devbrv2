@@ -129,12 +129,13 @@ public sealed class WorkerProcessHost(WorkerHostOptions options, ILoggerFactory 
             process.Exited -= onExit;
         }
 
-        client.Disconnected += (_, failure) => OnDisconnected(process, failure);
-        _logger.LogInformation("Archive worker started (pid {ProcessId}).", process.Id);
+        var pid = process.Id;
+        client.Disconnected += (_, failure) => OnDisconnected(process, pid, failure);
+        _logger.LogInformation("Archive worker started (pid {ProcessId}).", pid);
         return client;
     }
 
-    private void OnDisconnected(Process process, Exception? failure)
+    private void OnDisconnected(Process process, int processId, Exception? failure)
     {
         // Intentional shutdowns detach the process first, so only unexpected exits are reported.
         if (_disposing || !ReferenceEquals(Volatile.Read(ref _process), process))
@@ -142,6 +143,7 @@ public sealed class WorkerProcessHost(WorkerHostOptions options, ILoggerFactory 
             return;
         }
 
+        // A concurrent restart may dispose this Process object at any point below, so only the captured id is used for reporting.
         int? exitCode = null;
         try
         {
@@ -150,11 +152,11 @@ public sealed class WorkerProcessHost(WorkerHostOptions options, ILoggerFactory 
                 exitCode = process.ExitCode;
             }
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
         {
         }
 
-        _logger.LogError(failure, "Archive worker {ProcessId} stopped unexpectedly (exit code {ExitCode}).", process.Id, exitCode);
+        _logger.LogError(failure, "Archive worker {ProcessId} stopped unexpectedly (exit code {ExitCode}).", processId, exitCode);
         Faulted?.Invoke(this, new WorkerFaultedEventArgs(exitCode, "The background archive process stopped unexpectedly. DevBR will start a new one for the next operation."));
     }
 
