@@ -578,6 +578,11 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
         private byte[] BackupContent(PlannedOperation op)
         {
             var bytes = Staged(op);
+            if (op.Verbatim)
+            {
+                return bytes;
+            }
+
             var profile = MergeProfile.For(op.Operation.ArtifactId, Path.GetFileName(op.Operation.Target));
             if (profile is null || JsonMerger.Parse(bytes) is not { } node || JsonMerger.RewritePaths(node, profile, _rewriter).Count == 0)
             {

@@ -21,7 +21,14 @@ public sealed class VsCodeAdapter(bool insiders) : ToolAdapter
 
     public override string DisplayName => insiders ? "VS Code Insiders" : "VS Code";
 
-    public override IReadOnlyList<string> SupportedVersions => ["1.90 and later"];
+    public override AdapterSupport Support => Declare(
+        insiders ? "VS Code Insiders" : "VS Code",
+        [new("1.90", "2.0")],
+        insiders
+            ? [@"%APPDATA%\Code - Insiders\User (and User\profiles\*)", @"%USERPROFILE%\.vscode-insiders\extensions\extensions.json"]
+            : [@"%APPDATA%\Code\User (and User\profiles\*)", @"%USERPROFILE%\.vscode\extensions\extensions.json"],
+        AdapterCapabilities.Inventory | AdapterCapabilities.Capture | AdapterCapabilities.StructuredMerge | AdapterCapabilities.PathRewrite | AdapterCapabilities.DependencyRecipes,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.HostClosed, AdapterPrerequisites.McpRuntimes, "Turn Settings Sync and accounts back on after restore");
 
     protected override string ToolId => Id;
 
@@ -141,6 +148,13 @@ public sealed class CursorAdapter : ToolAdapter
     public override string Id => "cursor";
 
     public override string DisplayName => "Cursor";
+
+    public override AdapterSupport Support => Declare(
+        "Cursor",
+        [new("1.0", "3.0")],
+        [@"%APPDATA%\Cursor\User", @"%USERPROFILE%\.cursor"],
+        AdapterCapabilities.Inventory | AdapterCapabilities.Capture | AdapterCapabilities.StructuredMerge | AdapterCapabilities.PathRewrite | AdapterCapabilities.DependencyRecipes,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.HostClosed, AdapterPrerequisites.McpRuntimes, AdapterPrerequisites.SignInAgain);
 
     protected override string ToolId => "cursor";
 

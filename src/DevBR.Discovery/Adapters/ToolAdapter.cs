@@ -19,8 +19,8 @@ public interface IToolAdapter
 
     string DisplayName { get; }
 
-    /// <summary>Versions with verified semantic handling; others fall back to explicit file restore.</summary>
-    IReadOnlyList<string> SupportedVersions { get; }
+    /// <summary>Verified versions, locations, capabilities and prerequisites. Other versions fall back to whole-file restore or inventory.</summary>
+    AdapterSupport Support { get; }
 
     AdapterDiscovery Discover(IMachine machine, CancellationToken cancellationToken);
 }
@@ -31,10 +31,14 @@ public abstract class ToolAdapter : IToolAdapter
 
     public abstract string DisplayName { get; }
 
-    public virtual IReadOnlyList<string> SupportedVersions => ["any (file-level)"];
+    public abstract AdapterSupport Support { get; }
 
     /// <summary>The known-tool id this adapter's artifacts belong to.</summary>
     protected abstract string ToolId { get; }
+
+    /// <summary>A support descriptor whose host is this adapter's tool.</summary>
+    protected AdapterSupport Declare(string hostName, VersionRange[] versions, string[] locations, AdapterCapabilities capabilities, params string[] prerequisites)
+        => new(ToolId, hostName, versions, locations, capabilities, prerequisites);
 
     public AdapterDiscovery Discover(IMachine machine, CancellationToken cancellationToken)
     {
