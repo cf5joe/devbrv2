@@ -91,7 +91,7 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
             CreatePrivateDirectory(staging);
 
             // --- Staging ---------------------------------------------------------------------------------
-            var stage = new StagingContext(plan, staging, encrypted, progress, archiveId, cancellationToken);
+            using var stage = new StagingContext(plan, staging, encrypted, progress, archiveId, cancellationToken);
             foreach (var artifact in plan.Artifacts)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -119,7 +119,7 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
             WriteIndexes(plan, stage, results, warnings, archiveId, started, completed, encrypted);
 
             // --- Compression and verification (archive worker) -----------------------------------------
-            var totalBytes = stage.Entries.Sum(e => e.Size);
+            var totalBytes = stage.TotalBytes;
             var archiveProgress = progress is null ? null : new SynchronousProgress<ArchiveProgress>(p =>
                 progress.Report(new OperationEvent(archiveId, p.Stage == "Verifying" ? OperationStage.Verification : OperationStage.Compression, p.CurrentItem,
                     0, null, p.Percent is { } percent ? totalBytes * percent / 100 : 0, totalBytes, p.Stage == "Verifying" ? "Verifying the backup" : "Compressing",
@@ -132,8 +132,8 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
             var outcome = results.Any(r => r.Status != "Complete") || warnings.Count > 0 ? BackupOutcome.SucceededWithWarnings : BackupOutcome.Succeeded;
             logger.LogInformation("Backup {ArchiveId} written: {Files} files, {Bytes} bytes, outcome {Outcome}.", archiveId, created.FileCount, created.UncompressedBytes, outcome);
 
-            return new BackupResult(outcome, created.OutputPath, created.ArchiveBytes, stage.Entries.Count(e => e.EntryType == ArchiveEntryType.File), totalBytes,
-                created.Verified && created.VerifiedPayloadFiles == stage.Entries.Count(e => e.EntryType == ArchiveEntryType.File),
+            return new BackupResult(outcome, created.OutputPath, created.ArchiveBytes, stage.FileCount, totalBytes,
+                created.Verified && created.VerifiedPayloadFiles == stage.FileCount,
                 encrypted, results, warnings, null,
                 outcome == BackupOutcome.Succeeded ? "The backup was created and verified." : "The backup was created and verified, with warnings about some items.",
                 clock.Elapsed);
@@ -182,7 +182,7 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
             if (file.IsDirectory)
             {
                 Directory.CreateDirectory(destination);
-                stage.Entries.Add(new ArchiveEntry(artifact.Artifact.Id, file.RelativePath, ArchiveEntryType.Directory, 0, file.LastWriteUtc, null, FileAttributes.Directory, null, archivePath));
+                stage.AddEntry(new ArchiveEntry(artifact.Artifact.Id, file.RelativePath, ArchiveEntryType.Directory, 0, file.LastWriteUtc, null, FileAttributes.Directory, null, archivePath));
                 continue;
             }
 
@@ -212,7 +212,7 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
                     status = "Inconsistent";
                 }
 
-                stage.Entries.Add(new ArchiveEntry(artifact.Artifact.Id, file.RelativePath, ArchiveEntryType.File, size, before.LastWriteUtc, hash, FileAttributes.Normal, null, archivePath));
+                stage.AddEntry(new ArchiveEntry(artifact.Artifact.Id, file.RelativePath, ArchiveEntryType.File, size, before.LastWriteUtc, hash, FileAttributes.Normal, null, archivePath));
                 files++;
                 bytes += size;
                 stage.Advance(size, file.SourcePath);
@@ -256,17 +256,21 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
             return (0, null, $"{source} is too large to redact safely and was left out rather than copied with its secrets.");
         }
 
-        var small =input.CanSeek && input.Length <= Math.Max(SecretScanLimit, transform is null ? 0 : CaptureTransforms.MaxBytes);
+        var small = input.CanSeek && input.Length <= Math.Max(SecretScanLimit, transform is null ? 0 : CaptureTransforms.MaxBytes);
 
         if (transform is not null || (small && !stage.Encrypted))
         {
-            using var buffer = new MemoryStream();
-            input.CopyTo(buffer);
-            var bytes = buffer.ToArray();
+            // Never more than the redaction or secret-scan limit in memory, even when the source cannot report its length.
+            if (ReadBounded(input, transform is null ? SecretScanLimit : CaptureTransforms.MaxBytes) is not { } bytes)
+            {
+                return (0, null, transform is null
+                    ? $"{source} grew while it was being captured and was left out. Close the program using it and back up again."
+                    : $"{source} is too large to redact safely and was left out rather than copied with its secrets.");
+            }
 
             if (transform is not null)
             {
-                if (bytes.Length > CaptureTransforms.MaxBytes || transform(bytes) is not { } transformed)
+                if (transform(bytes) is not { } transformed)
                 {
                     return (0, null, $"{source} could not be parsed for safe redaction and was left out rather than copied with its secrets.");
                 }
@@ -296,6 +300,24 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
         }
 
         return (total, Convert.ToHexStringLower(sha.GetHashAndReset()), null);
+    }
+
+    private static byte[]? ReadBounded(Stream input, long maxBytes)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[1 << 16];
+        int read;
+        while ((read = input.Read(chunk, 0, chunk.Length)) > 0)
+        {
+            if (buffer.Length + read > maxBytes)
+            {
+                return null;
+            }
+
+            buffer.Write(chunk, 0, read);
+        }
+
+        return buffer.ToArray();
     }
 
     private static bool LooksLikeTextWithSecret(byte[] bytes)
@@ -344,7 +366,7 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(variables, IndexJson);
         File.WriteAllBytes(destination, bytes);
-        stage.Entries.Add(new ArchiveEntry(id, "environment.json", ArchiveEntryType.File, bytes.Length, DateTimeOffset.UtcNow,
+        stage.AddEntry(new ArchiveEntry(id, "environment.json", ArchiveEntryType.File, bytes.Length, DateTimeOffset.UtcNow,
             Convert.ToHexStringLower(SHA256.HashData(bytes)), FileAttributes.Normal, null, archivePath));
         stage.Advance(bytes.Length, artifact.Artifact.DisplayName);
 
@@ -380,7 +402,7 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
             hashes[relative] = Hash(path);
         }
 
-        WriteLines(ArchiveContract.EntriesIndexPath, stage.Entries);
+        hashes[ArchiveContract.EntriesIndexPath] = Hash(stage.CompleteEntries());
         WriteLines(ArchiveContract.ArtifactsIndexPath, plan.Artifacts.Select(a =>
         {
             var result = results.First(r => r.ArtifactId == a.Artifact.Id);
@@ -406,7 +428,7 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
             plan.Machine.Info.Architecture,
             completed,
             encrypted,
-            new BackupTotals(plan.Artifacts.Count, stage.Entries.Count, stage.Entries.Sum(e => e.Size)),
+            new BackupTotals(plan.Artifacts.Count, stage.EntryCount, stage.TotalBytes),
             hashes,
             [.. warnings.Take(200)]);
         File.WriteAllText(Path.Combine(stage.Root, ArchiveContract.ManifestPath), BackupManifestReader.Serialize(manifest), new UTF8Encoding(false));
@@ -490,7 +512,7 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
         return options;
     }
 
-    private sealed class StagingContext(BackupPlan plan, string root, bool encrypted, IProgress<OperationEvent>? progress, Guid jobId, CancellationToken cancellationToken)
+    private sealed class StagingContext(BackupPlan plan, string root, bool encrypted, IProgress<OperationEvent>? progress, Guid jobId, CancellationToken cancellationToken) : IDisposable
     {
         private readonly Stopwatch _clock = Stopwatch.StartNew();
         private readonly Stopwatch _throttle = Stopwatch.StartNew();
@@ -505,7 +527,53 @@ public sealed class BackupRunner(IArchiveService archive, ILogger<BackupRunner> 
 
         public CancellationToken CancellationToken { get; } = cancellationToken;
 
-        public List<ArchiveEntry> Entries { get; } = [];
+        /// <summary>Entries go straight to entries.ndjson as they are captured, so memory does not grow with the file count.</summary>
+        private StreamWriter? _entries;
+
+        public long EntryCount { get; private set; }
+
+        public long FileCount { get; private set; }
+
+        public long TotalBytes { get; private set; }
+
+        public void AddEntry(ArchiveEntry entry)
+        {
+            if (_entries is null)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(EntriesPath)!);
+                _entries = new StreamWriter(new FileStream(EntriesPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16), new UTF8Encoding(false));
+            }
+
+            _entries.Write(JsonSerializer.Serialize(entry, IndexJson));
+            _entries.Write('\n');
+            EntryCount++;
+            TotalBytes += entry.Size;
+            if (entry.EntryType == ArchiveEntryType.File)
+            {
+                FileCount++;
+            }
+        }
+
+        /// <summary>Closes entries.ndjson (creating it empty if nothing was captured) and returns its path.</summary>
+        public string CompleteEntries()
+        {
+            if (_entries is not null)
+            {
+                _entries.Dispose();
+                _entries = null;
+            }
+            else if (!File.Exists(EntriesPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(EntriesPath)!);
+                File.WriteAllBytes(EntriesPath, []);
+            }
+
+            return EntriesPath;
+        }
+
+        private string EntriesPath => Path.Combine(Root, ArchiveContract.EntriesIndexPath.Replace('/', '\\'));
+
+        public void Dispose() => _entries?.Dispose();
 
         public List<string> SecretDetections { get; } = [];
 
