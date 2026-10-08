@@ -29,7 +29,7 @@ public interface IToolAdapter
 {
     string Id { get; }                               // "gh"; prefixes every artifact id ("gh:config")
     string DisplayName { get; }                      // "GitHub CLI"
-    IReadOnlyList<string> SupportedVersions { get; } // versions with verified semantic handling
+    AdapterSupport Support { get; }                  // verified versions, locations, capabilities, prerequisites
     AdapterDiscovery Discover(IMachine machine, CancellationToken cancellationToken);
 }
 ```
@@ -41,7 +41,15 @@ public sealed class GitHubCliAdapter : ToolAdapter
 {
     public override string Id => "gh";
     public override string DisplayName => "GitHub CLI";
-    protected override string ToolId => "gh";        // the KnownTools id the artifacts belong to
+
+    public override AdapterSupport Support => Declare(
+        "GitHub CLI",
+        [new("2.40", "3.0")],                                     // verified versions: >= 2.40, < 3.0
+        [@"%GH_CONFIG_DIR%", @"%APPDATA%\GitHub CLI"],            // locations, environment overrides first
+        AdapterCapabilities.Capture,
+        AdapterPrerequisites.HostInstalled, "Run 'gh auth login' after restore; tokens in hosts.yml are excluded unless explicitly included (encrypted)");
+
+    protected override string ToolId => "gh";        // the KnownTools id the artifacts belong to (and whose version is checked)
 
     protected override void Discover(AdapterScope s, CancellationToken cancellationToken)
     {
@@ -60,8 +68,27 @@ public sealed class GitHubCliAdapter : ToolAdapter
 }
 ```
 
-`SupportedVersions` defaults to `["any (file-level)"]`: unknown versions fall back to explicit file
-restore. Only list a version once a fixture proves its semantic handling.
+### Support descriptor (`AdapterSupport`)
+
+`Support` is declared with `Declare(hostName, versions, locations, capabilities, prerequisites...)`:
+
+| Field | Meaning |
+|---|---|
+| `VerifiedVersions` | Half-open `VersionRange(minimum, below)` intervals of the host tool whose handling is covered by fixtures |
+| `Locations` | Where the adapter reads, in precedence order (environment overrides first) |
+| `Capabilities` | `Inventory`, `Capture`, `StructuredMerge`, `PathRewrite`, `DependencyRecipes` |
+| `Prerequisites` | What preflight checks or asks the user to do (`AdapterPrerequisites` has shared wording) |
+
+`StructuredMerge` and `PathRewrite` are *semantic* capabilities: the planner uses them only when the host
+version on the new computer (and, when recorded, on the source computer) falls in `VerifiedVersions`.
+For an unknown or unverified version, files fall back to whole-file handling (keep, replace or restore
+alongside) and are written verbatim, and preflight raises an `unverified-version:<tool>` warning. The
+Windows environment adapter falls back to inventory only. Only widen a range once a fixture proves the
+semantic handling for it (see `tests/DevBR.Tests/Restore/AdapterSupportTests.cs`).
+
+[INTEGRATIONS.md](INTEGRATIONS.md) is generated from these descriptors; regenerate it with
+`$env:DEVBR_UPDATE_DOCS='1'; dotnet test --project tests/DevBR.Tests --filter-class "*IntegrationMatrixTests"`
+(a test fails if it drifts).
 
 ### `AdapterScope` helpers
 
@@ -160,4 +187,4 @@ user chooses the backup's, and add only missing values.
 4. Include an unknown-version fixture so the file-level fallback is exercised.
 5. Run `dotnet test --project tests/DevBR.Tests`, then try it in the app with
    `DevBR.exe --machine sample` (development builds; see [SIMULATION.md](SIMULATION.md)).
-6. Update [INTEGRATIONS.md](INTEGRATIONS.md) with the tool, the versions verified and what is excluded.
+6. Regenerate [INTEGRATIONS.md](INTEGRATIONS.md) from the descriptors (`DEVBR_UPDATE_DOCS=1`, see above).
