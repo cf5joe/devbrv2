@@ -16,7 +16,7 @@ tree). The machine-readable list of shipped packages, with versions and hashes, 
 | CommunityToolkit.Mvvm | 8.4.2 | MIT | `MIT.txt` | https://github.com/CommunityToolkit/dotnet |
 | Serilog, Serilog.Extensions.Hosting, Serilog.Extensions.Logging, Serilog.Sinks.File | 4.3.0 / 10.0.0 / 10.0.0 / 7.0.0 | Apache-2.0 | `Apache-2.0.txt` | https://github.com/serilog |
 | SharpSevenZip | 2.0.128 | LGPL-3.0-or-later | `LGPL-3.0-or-later.txt` | https://github.com/JeremyAnsel/SharpSevenZip |
-| 7-Zip (`x64\7z.dll`, shipped inside the SharpSevenZip package) | 26.03 | GNU LGPL with unRAR restriction; BSD 3-clause and BSD 2-clause for parts | `7-Zip.txt`, `LGPL-3.0-or-later.txt`, `BSD-3-Clause.txt`, `BSD-2-Clause.txt` | https://www.7-zip.org/license.txt, https://github.com/ip7z/7zip |
+| 7-Zip (`x64\7z.dll`, shipped inside the SharpSevenZip package) | 26.03 | LGPL-2.1-or-later with unRAR restriction; BSD 3-clause and BSD 2-clause for parts | `7-Zip.txt`, `LGPL-2.1-or-later.txt`, `BSD-3-Clause.txt`, `BSD-2-Clause.txt` | https://www.7-zip.org/license.txt, https://github.com/ip7z/7zip |
 | Tomlyn | 2.10.1 | BSD-2-Clause | `BSD-2-Clause.txt` | https://github.com/xoofx/Tomlyn |
 
 The .NET runtime's own third-party notices are published at
@@ -30,7 +30,7 @@ pinned in `.config/dotnet-tools.json`) are not redistributed and are not listed 
 SharpSevenZip and 7-Zip are licensed under the GNU Lesser General Public License. DevBR uses them as
 separate, unmodified dynamic libraries (`SharpSevenZip.dll`, `x64\7z.dll`) loaded only by
 `DevBR.ArchiveWorker.exe`. You may replace these files with compatible builds of your choice. The
-corresponding source code is available from the project links above. The LGPL text in the `licenses`
+corresponding source code is available from the project links above. The LGPL 3.0 text in the `licenses`
 folder includes the GNU GPL version 3 that it incorporates.
 
 ## unRAR restriction (7-Zip)
