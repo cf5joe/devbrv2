@@ -10,4 +10,7 @@ public abstract class PageViewModel : ObservableObject
     public abstract string Glyph { get; }
 
     public virtual Task OnNavigatedToAsync() => Task.CompletedTask;
+
+    // The page host announces its content's ToString(); make that the page title.
+    public override string ToString() => Title;
 }

@@ -26,17 +26,35 @@ public sealed record StepIndicator(int Number, string Title, string State)
     public bool IsDone => State == "Done";
 
     public string AccessibleName => $"Step {Number}: {Title}, {State.ToLowerInvariant()}";
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => AccessibleName;
 }
 
-public sealed record SelectedItemSummary(string Owner, string Name, string? Badge);
+public sealed record SelectedItemSummary(string Owner, string Name, string? Badge)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => Badge is null ? $"{Owner}: {Name}" : $"{Owner}: {Name}, {Badge}";
+}
 
-public sealed record FindingRow(InfoSeverity Severity, string Title, string? Remediation);
+public sealed record FindingRow(InfoSeverity Severity, string Title, string? Remediation)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Severity}: {Title}";
+}
 
-public sealed record CaptureRow(string Name, string Owner, string Detail, string? Status);
+public sealed record CaptureRow(string Name, string Owner, string Detail, string? Status)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => string.Join(", ", new[] { $"{Owner}: {Name}", Detail, Status }.Where(s => !string.IsNullOrEmpty(s)));
+}
 
 public sealed record ResultRow(string Name, string Status, string Detail, IReadOnlyList<string> Warnings)
 {
     public bool IsComplete => Status == "Complete";
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Name}: {Status}, {Detail}";
 }
 
 public sealed partial class ExclusionRuleRow(ExclusionRule rule, Action changed) : ObservableObject
@@ -49,6 +67,9 @@ public sealed partial class ExclusionRuleRow(ExclusionRule rule, Action changed)
     public partial bool Enabled { get; set; } = rule.Enabled;
 
     public ExclusionRule ToRule() => rule with { Enabled = Enabled };
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => FolderName;
 
     partial void OnEnabledChanged(bool value) => changed();
 }

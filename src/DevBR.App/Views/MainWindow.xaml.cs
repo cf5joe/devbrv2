@@ -17,7 +17,21 @@ public partial class MainWindow
         InitializeComponent();
         DataContext = viewModel;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
-        Loaded += (_, _) => Navigation.Focus();
+        Loaded += (_, _) => FocusSelectedPage();
+    }
+
+    /// <summary>Keyboard focus starts on the current sidebar item, so arrow keys move between pages at once.</summary>
+    private void FocusSelectedPage()
+    {
+        Navigation.UpdateLayout();
+        if (Navigation.ItemContainerGenerator.ContainerFromItem(Navigation.SelectedItem) is System.Windows.Controls.ListBoxItem item)
+        {
+            item.Focus();
+        }
+        else
+        {
+            Navigation.Focus();
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

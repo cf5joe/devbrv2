@@ -22,7 +22,11 @@ using DevBR.Simulation;
 
 namespace DevBR.App.ViewModels;
 
-public sealed record DetailRow(string Label, string Value);
+public sealed record DetailRow(string Label, string Value)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Label}: {Value}";
+}
 
 public enum RestoreStage
 {
@@ -53,9 +57,16 @@ public sealed record BackupArtifactRow(ArtifactSummary Summary)
     };
 
     public IReadOnlyList<string> Warnings => Summary.Record.Warnings;
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Owner}: {Name}, {Status}, {Detail}";
 }
 
-public sealed record BackupEntryRow(string Path, string Size);
+public sealed record BackupEntryRow(string Path, string Size)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Path}, {Size}";
+}
 
 /// <summary>
 /// Restore steps 1–3: choose a backup, unlock it if encrypted, and browse its overview. Only the indexes

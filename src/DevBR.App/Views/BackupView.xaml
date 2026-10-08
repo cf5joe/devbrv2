@@ -5,7 +5,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:DevBR.App.ViewModels"
              xmlns:controls="clr-namespace:DevBR.App.Controls"
-             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:BackupViewModel}">
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:BackupViewModel}"
+             AutomationProperties.AutomationId="BackupPage">
     <UserControl.Resources>
         <DataTemplate x:Key="Finding" DataType="{x:Type vm:FindingRow}">
             <controls:InfoBar Severity="{Binding Severity}" Title="{Binding Title}" Message="{Binding Remediation}" Margin="0,0,0,8" />
@@ -50,7 +51,7 @@
                             <Grid>
                                 <TextBlock x:Name="Number" Text="{Binding Number}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
                                            Foreground="{DynamicResource DevBR.TextMuted}" />
-                                <TextBlock x:Name="Check" Text="&#xE73E;" Style="{StaticResource Text.Icon}" FontSize="12" HorizontalAlignment="Center"
+                                <controls:Glyph x:Name="Check" Text="&#xE73E;" Style="{StaticResource Text.Icon}" FontSize="12" HorizontalAlignment="Center"
                                            Foreground="{DynamicResource DevBR.AccentForeground}" Visibility="Collapsed" />
                             </Grid>
                         </Border>
@@ -98,7 +99,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="{x:Type vm:SelectedItemSummary}">
                                     <StackPanel Orientation="Horizontal" Margin="0,3">
-                                        <TextBlock Text="&#xE73E;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,10,0" />
+                                        <controls:Glyph Text="&#xE73E;" Style="{StaticResource Text.Icon}" FontSize="12" Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,10,0" />
                                         <TextBlock Text="{Binding Owner}" Style="{StaticResource Text.Muted}" Width="170" />
                                         <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" />
                                         <TextBlock Text="{Binding Badge, StringFormat=' · {0}'}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center"
@@ -115,14 +116,14 @@
                     <TextBlock Text="Add your own files and folders" Style="{StaticResource Text.SectionTitle}" />
                     <TextBlock Style="{StaticResource Text.Muted}" Margin="0,4,0,16"
                                Text="Optional. Scripts, notes, dotfiles or project folders that discovery did not offer. Overlaps are captured once, and DevBR's own folders are never included." />
-                    <ItemsControl ItemsSource="{Binding CustomPaths}" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding CustomPaths}" Focusable="False" AutomationProperties.Name="Added files and folders">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <DockPanel Margin="0,0,0,4">
                                     <Button DockPanel.Dock="Right" Style="{StaticResource Button.Subtle}" ToolTip="Remove"
                                             Command="{Binding DataContext.RemoveCustomCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
                                             AutomationProperties.Name="{Binding StringFormat='Remove {0}'}">
-                                        <TextBlock Text="&#xE711;" Style="{StaticResource Text.Icon}" FontSize="11" />
+                                        <controls:Glyph Text="&#xE711;" Style="{StaticResource Text.Icon}" FontSize="11" />
                                     </Button>
                                     <TextBlock Text="{Binding}" Style="{StaticResource Text.Body}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                 </DockPanel>
@@ -148,7 +149,7 @@
                     <controls:InfoBar Severity="Warning" Title="This backup must be encrypted" Margin="0,0,0,8"
                                       Message="You will set a password in the next step."
                                       Visibility="{Binding EncryptionReasons.Count, Converter={StaticResource HasValue}}" />
-                    <ItemsControl ItemsSource="{Binding EncryptionReasons}" Focusable="False" Margin="16,0,0,8">
+                    <ItemsControl ItemsSource="{Binding EncryptionReasons}" Focusable="False" AutomationProperties.Name="Why encryption is required" Margin="16,0,0,8">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding StringFormat='• {0}'}" Style="{StaticResource Text.Muted}" />
@@ -161,7 +162,7 @@
                     <TextBlock Text="Excluded folders" Style="{StaticResource Text.Label}" Margin="0,16,0,4" />
                     <TextBlock Style="{StaticResource Text.Caption}" Margin="0,0,0,8"
                                Text="Regenerable folders inside repositories and your own folders. A folder that contains files tracked by Git is always kept." />
-                    <ItemsControl ItemsSource="{Binding Rules}" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding Rules}" Focusable="False" AutomationProperties.Name="Exclusion rules">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel />
@@ -244,12 +245,12 @@
                                 <DataTemplate DataType="{x:Type vm:ResultRow}">
                                     <StackPanel Margin="0,4">
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock x:Name="Icon" Text="&#xE7BA;" Style="{StaticResource Text.Icon}" FontSize="13" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
+                                            <controls:Glyph x:Name="Icon" Text="&#xE7BA;" Style="{StaticResource Text.Icon}" FontSize="13" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,8,0" />
                                             <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Label}" />
                                             <TextBlock Text="{Binding Status, StringFormat=' · {0}'}" Style="{StaticResource Text.Muted}" />
                                             <TextBlock Text="{Binding Detail, StringFormat=' · {0}'}" Style="{StaticResource Text.Caption}" VerticalAlignment="Center" />
                                         </StackPanel>
-                                        <ItemsControl ItemsSource="{Binding Warnings}" Margin="22,2,0,0" Focusable="False">
+                                        <ItemsControl ItemsSource="{Binding Warnings}" Margin="22,2,0,0" Focusable="False" AutomationProperties.Name="{Binding Name, StringFormat='Warnings for {0}'}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding}" Style="{StaticResource Text.Caption}" />

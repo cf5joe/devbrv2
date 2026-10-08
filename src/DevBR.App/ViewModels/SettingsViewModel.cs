@@ -15,9 +15,16 @@ using DevBR.Ipc;
 
 namespace DevBR.App.ViewModels;
 
-public sealed record ThemeOption(ThemePreset Preset, string Name, string Description, Brush Background, Brush Surface, Brush Accent, Brush Text);
+public sealed record ThemeOption(ThemePreset Preset, string Name, string Description, Brush Background, Brush Surface, Brush Accent, Brush Text)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => Name;
+}
 
-public sealed record AccentOption(string Name, string? Hex, Brush Fill, Brush Check);
+public sealed record AccentOption(string Name, string? Hex, Brush Fill, Brush Check)
+{
+    public override string ToString() => Name;
+}
 
 public sealed partial class SettingsViewModel : PageViewModel
 {
