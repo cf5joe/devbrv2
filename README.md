@@ -39,15 +39,59 @@ dotnet test --project tests/DevBR.Tests
 dotnet run --project src/DevBR.App
 ```
 
-## Portable package
+## Portable package and release
+
+Requires PowerShell 7.2+ and network access to nuget.org (or a warm NuGet cache) for the tool and
+package restore.
 
 ```powershell
-./build/publish.ps1                    # Development build -> artifacts/DevBR-<version>-win-x64-dev.zip
-./build/publish.ps1 -Channel Release   # Release channel (must then be Authenticode-signed)
+./build/publish.ps1                                                    # Development build -> artifacts/DevBR-<version>-win-x64-dev.zip
+./build/publish.ps1 -Channel Release -CertificateThumbprint <sha1>     # Signed release (certificate store)
+./build/publish.ps1 -Channel Release -PfxPath devbr.pfx -PfxPassword (Read-Host -AsSecureString)
+./build/publish.ps1 -Channel Release -AllowUnsigned                    # Unsigned release, named -unsigned
+./build/verify-release.ps1 artifacts/DevBR-<version>-win-x64-dev.zip   # Validate a ZIP
 ```
 
-The output folder contains `DevBR.exe`, `DevBR.ArchiveWorker.exe`, `DevBR.Broker.exe`, the bundled .NET
-runtime, `x64\7z.dll`, notices and usage notes. A `.sha256` checksum is written next to the ZIP.
+`publish.ps1`:
+
+1. restores the pinned local tools (`.config/dotnet-tools.json`) and all packages in locked mode
+   (`packages.lock.json` must match), then fails if `dotnet list package --vulnerable --include-transitive`
+   reports anything;
+2. publishes `DevBR.exe`, `DevBR.ArchiveWorker.exe` and `DevBR.Broker.exe` self-contained for win-x64;
+3. optionally Authenticode-signs `DevBR*.exe` and `DevBR*.dll` with `signtool` (SHA-256, RFC 3161
+   timestamp from `-TimestampUrl`; signtool is found on PATH or in the Windows SDK, or pass `-SignToolPath`).
+   A Release build refuses to produce a ZIP unless every DevBR binary has a valid signature, or
+   `-AllowUnsigned` is passed, which names the ZIP `-unsigned` and adds `UNSIGNED-RELEASE.txt`;
+4. writes a CycloneDX 1.6 SBOM with the pinned `CycloneDX` tool (NuGet packages plus the bundled .NET
+   runtime packs, 7-Zip and hashes of DevBR's own binaries);
+5. adds notices, license texts (`licenses\`), usage, migration and troubleshooting guides,
+   `release-info.json` (version, channel, signed, commit) and an in-package `SHA256SUMS`;
+6. writes to `artifacts\`: the ZIP, `<zip name>.cdx.json` (SBOM), `SHA256SUMS` (ZIP, SBOM and every
+   executable, listed under the folder Explorer's *Extract All* creates) and the legacy `<zip>.sha256`.
+
+`verify-release.ps1` checks the checksums, the required files, every file against the in-package
+`SHA256SUMS`, the Authenticode status of the DevBR binaries (required for a signed Release), that the
+channel and version in the file name, `release-info.json`, the SBOM and the assemblies'
+`DevBR.ReleaseChannel` metadata agree, and that `DevBR.exe` starts and opens no sockets during the first
+seconds (`-SkipLaunch` to skip). The fully offline clean-VM launch is a manual step in
+[docs/ACCEPTANCE-CHECKLIST.md](docs/ACCEPTANCE-CHECKLIST.md).
+
+Code signing needs a code-signing certificate (OV/EV or a cloud signing service) supplied by the
+releaser; none is stored in this repository.
+
+## Documentation
+
+| Document | Audience |
+|---|---|
+| [docs/USAGE.md](docs/USAGE.md) | Quick start (shipped in the package) |
+| [docs/MIGRATION-GUIDE.md](docs/MIGRATION-GUIDE.md) | End-to-end move from one PC to another (shipped) |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | UAC, SmartScreen, locked files, passwords, space, FAT32, recovery, logs (shipped) |
+| [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported tools and versions |
+| [docs/ARCHIVE-FORMAT.md](docs/ARCHIVE-FORMAT.md) | The `.devbr` archive format |
+| [docs/ADAPTER-DEVELOPMENT.md](docs/ADAPTER-DEVELOPMENT.md) | Adding a tool adapter |
+| [docs/SIMULATION.md](docs/SIMULATION.md) | Simulated machines for development and tests |
+| [docs/ACCEPTANCE-CHECKLIST.md](docs/ACCEPTANCE-CHECKLIST.md) | Clean-VM and two-machine acceptance report |
+| [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) | Third-party components and licenses |
 
 ## Security model (Phase 1)
 
