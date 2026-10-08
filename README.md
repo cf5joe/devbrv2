@@ -27,6 +27,7 @@ against simulated machines; see [docs/SIMULATION.md](docs/SIMULATION.md).
 | `src/DevBR.Broker` | Elevated broker with a narrow operation set: applies machine environment changes only when they match an approved job's effects in the user's journal |
 | `src/DevBR.App` | WPF/MVVM desktop shell (`DevBR.exe`): navigation, themes, Restore inspection, diagnostics |
 | `tests/DevBR.Tests` | xUnit v3 tests: archive security, IPC/broker rejection, worker crashes, contrast, state |
+| `tests/DevBR.UiTests` | Opt-in FlaUI UI automation against `DevBR.exe` on simulated machines (see [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)) |
 
 ## Build, test, run
 
@@ -35,6 +36,7 @@ Requires the .NET 10 SDK (pinned in `global.json`).
 ```powershell
 dotnet build DevBR.slnx
 dotnet test --project tests/DevBR.Tests
+$env:DEVBR_UI_TESTS = '1'; dotnet test --project tests/DevBR.UiTests   # optional, drives the desktop
 dotnet run --project src/DevBR.App
 ```
 

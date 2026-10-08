@@ -35,5 +35,8 @@
     <Project Path="tests/DevBR.Tests/DevBR.Tests.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="tests/DevBR.UiTests/DevBR.UiTests.csproj">
+      <Platform Project="x64" />
+    </Project>
   </Folder>
 </Solution>
