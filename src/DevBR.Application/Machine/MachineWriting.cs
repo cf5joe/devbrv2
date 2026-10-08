@@ -111,8 +111,8 @@ public static class RestoreEffects
         var target = $"ENV:MACHINE:{change.Name.ToUpperInvariant()}";
         foreach (var p in effects.Where(p => p[0] == "SetEnvironmentVariable" && p[1] == target && p[5].Length > 0))
         {
-            // Apply: exactly the approved value.
-            if (change.NewValue is not null && Sha256(change.NewValue) == p[5])
+            // Apply: exactly the approved value, over exactly the state recorded when the plan was approved.
+            if (change.NewValue is not null && Sha256(change.NewValue) == p[5] && MatchesRecordedState(p[6], change.ExpectedCurrentValue))
             {
                 return true;
             }
@@ -134,4 +134,9 @@ public static class RestoreEffects
 
         return false;
     }
+
+    private static bool MatchesRecordedState(string recorded, string? current)
+        => recorded == "absent"
+            ? current is null
+            : recorded.StartsWith("value:", StringComparison.Ordinal) && current is not null && Sha256(current)[..16] == recorded["value:".Length..];
 }

@@ -310,6 +310,8 @@ public sealed class SevenZipArchiveService : IArchiveService
                 throw new ArchiveException(ArchiveErrorKind.UnsafeEntryPath, $"The archive contains duplicate or case-colliding entries for '{entry.Path}'.");
             }
 
+            EnsureNoLinkedAncestor(destinationRoot, destination, entry.Path);
+
             plan.Add((entry, destination));
         }
 
@@ -400,6 +402,11 @@ public sealed class SevenZipArchiveService : IArchiveService
                 throw new ArchiveException(ArchiveErrorKind.UnsafeEntryPath, $"The archive contains duplicate or case-colliding entries for '{normalized}'.");
             }
 
+            if (IsLink(data.Attributes))
+            {
+                throw new ArchiveException(ArchiveErrorKind.UnsafeEntryPath, $"The archive entry '{normalized}' is a symbolic link or junction, which DevBR never creates.");
+            }
+
             entries.Add(new ArchiveEntryInfo(
                 data.Index,
                 normalized,
@@ -411,6 +418,45 @@ public sealed class SevenZipArchiveService : IArchiveService
         }
 
         return entries;
+    }
+
+    /// <summary>Windows reparse points, or a Unix symlink mode stored in the high word (p7zip convention).</summary>
+    private static bool IsLink(uint attributes)
+    {
+        const uint ReparsePoint = 0x400;
+        const uint UnixExtension = 0x8000;
+        const uint UnixTypeMask = 0xF000;
+        const uint UnixSymlink = 0xA000;
+
+        return (attributes & ReparsePoint) != 0
+            || ((attributes & UnixExtension) != 0 && ((attributes >> 16) & UnixTypeMask) == UnixSymlink);
+    }
+
+    /// <summary>
+    /// Refuses a destination whose existing folders below the root include a junction or symbolic link,
+    /// which would redirect the write outside the destination.
+    /// </summary>
+    private static void EnsureNoLinkedAncestor(string root, string destination, string entryPath)
+    {
+        var fullRoot = Path.TrimEndingDirectorySeparator(root);
+        for (var current = destination; current.Length > fullRoot.Length; current = Path.GetDirectoryName(current)!)
+        {
+            var info = new DirectoryInfo(current);
+            if (!info.Exists)
+            {
+                if (File.Exists(current) && File.GetAttributes(current).HasFlag(FileAttributes.ReparsePoint))
+                {
+                    throw new ArchiveException(ArchiveErrorKind.UnsafeEntryPath, $"The destination for '{entryPath}' is a link.");
+                }
+
+                continue;
+            }
+
+            if (info.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            {
+                throw new ArchiveException(ArchiveErrorKind.UnsafeEntryPath, $"The destination for '{entryPath}' passes through a junction or symbolic link.");
+            }
+        }
     }
 
     private static string RequireArchiveFile(string archivePath)
