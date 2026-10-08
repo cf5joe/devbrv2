@@ -23,11 +23,17 @@ public sealed partial class RestoreItemRow(ArtifactSummary summary, Action chang
     public partial bool IsSelected { get; set; } = summary.Record.Status != "Blocked";
 
     partial void OnIsSelectedChanged(bool value) => changed();
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Owner}: {Name}";
 }
 
 public sealed record MappingRow(string Source, string Target, string Origin, bool IsValid, bool CanChange)
 {
     public string StatusLabel => IsValid ? "Ready" : "Needs a destination";
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Source} to {Target}, {StatusLabel}";
 }
 
 public sealed record FindingView(InfoSeverity Severity, string Title, string Message, string Label)
@@ -43,6 +49,9 @@ public sealed record FindingView(InfoSeverity Severity, string Title, string Mes
         };
         return new FindingView(severity, $"{label}: {finding.Problem}", $"{finding.WhyItMatters} {steps}".Trim(), label);
     }
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => Title;
 }
 
 /// <summary>One planned change, with its conflict choice when there is one.</summary>
@@ -86,6 +95,9 @@ public sealed partial class OperationRow : ObservableObject
             _ => c.Path,
         }));
 
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => Title;
+
     [ObservableProperty]
     public partial ConflictDecision? Decision { get; set; }
 
@@ -98,7 +110,11 @@ public sealed partial class OperationRow : ObservableObject
     }
 }
 
-public sealed record OperationGroup(string Title, string Description, IReadOnlyList<OperationRow> Rows);
+public sealed record OperationGroup(string Title, string Description, IReadOnlyList<OperationRow> Rows)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Title}, {Formatting.Count(Rows.Count, "change", "changes")}";
+}
 
 public static class DecisionLabels
 {
@@ -166,6 +182,9 @@ public sealed record RestoreResultRow(DevBR.Restore.Execution.OperationReport Re
         .Where(s => !string.IsNullOrWhiteSpace(s)));
 
     public bool NeedsAttention => Severity is InfoSeverity.Error or InfoSeverity.Warning;
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Item}: {Title}, {Status}";
 }
 
 /// <summary>A restore from the journal, offered for rollback or to reopen its report.</summary>
@@ -193,6 +212,9 @@ public sealed record RecentRestoreRow(DevBR.Application.Restore.JournalJob Job, 
     public string? ReportPath => Summary?.ReportHtmlPath;
 
     public bool HasReport => ReportPath is not null && System.IO.File.Exists(ReportPath);
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => string.Join(", ", new[] { Title, When, State, Counts }.Where(s => !string.IsNullOrEmpty(s)));
 
     public bool CanRollBack => Job.State is not (DevBR.Application.Restore.JobStates.RolledBack or DevBR.Application.Restore.JobStates.Running);
 }

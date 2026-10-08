@@ -24,6 +24,7 @@ public sealed record RestoreRequest(
 /// <summary>A restore operation with everything the preview shows about it.</summary>
 /// <param name="Enabled">False for operations held back (e.g. a PATH entry whose folder does not exist yet).</param>
 /// <param name="AllowedDecisions">The choices the user may make for this operation (empty when there is no conflict).</param>
+/// <param name="Verbatim">Write the captured bytes as they are: the host version is not verified, so no declared path fields are rewritten.</param>
 public sealed record PlannedOperation(
     RestoreOperation Operation,
     string Title,
@@ -36,7 +37,8 @@ public sealed record PlannedOperation(
     bool Enabled,
     IReadOnlyList<ConflictDecision> AllowedDecisions,
     string? Value = null,
-    bool Expandable = false);
+    bool Expandable = false,
+    bool Verbatim = false);
 
 public sealed record ReinstallGuidance(string Name, string? SourceVersion, string Hint);
 

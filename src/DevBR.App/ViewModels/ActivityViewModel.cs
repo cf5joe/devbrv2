@@ -8,7 +8,11 @@ using DevBR.Infrastructure.State;
 
 namespace DevBR.App.ViewModels;
 
-public sealed record ActivityItem(string Glyph, string SeverityLabel, string Time, string Category, string Message, string? Detail, EventSeverity Severity);
+public sealed record ActivityItem(string Glyph, string SeverityLabel, string Time, string Category, string Message, string? Detail, EventSeverity Severity)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{SeverityLabel}, {Category}, {Time}: {Message}";
+}
 
 public sealed partial class ActivityViewModel : PageViewModel
 {

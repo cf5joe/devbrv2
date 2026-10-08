@@ -31,6 +31,13 @@ public sealed class IpcServerOptions
     /// </summary>
     public bool DisconnectOnRejectedRequest { get; init; }
 
+    /// <summary>
+    /// Identifies handler failures that count as rejected requests (for example, a refused authorization)
+    /// rather than ordinary operation failures. Together with <see cref="DisconnectOnRejectedRequest"/>
+    /// they end the session after the error is sent.
+    /// </summary>
+    public Func<Exception, bool>? IsRejection { get; init; }
+
     public TimeSpan HandshakeTimeout { get; init; } = TimeSpan.FromSeconds(10);
 
     /// <summary>How long to wait for the expected client to connect before giving up.</summary>
@@ -58,6 +65,8 @@ public sealed class IpcServer(IpcServerOptions options, IpcDispatcher dispatcher
 {
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _inFlight = new();
+    private CancellationTokenSource? _session;
+    private volatile bool _rejectedLate;
 
     /// <summary>Raised once the pipe exists and is waiting for its client.</summary>
     public event EventHandler? Listening;
@@ -96,6 +105,7 @@ public sealed class IpcServer(IpcServerOptions options, IpcDispatcher dispatcher
         }
 
         using var sessionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _session = sessionCts;
         try
         {
             if (!await HandshakeAsync(pipe, sessionCts.Token).ConfigureAwait(false))
@@ -108,6 +118,10 @@ public sealed class IpcServer(IpcServerOptions options, IpcDispatcher dispatcher
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             return IpcSessionOutcome.Cancelled;
+        }
+        catch (OperationCanceledException) when (_rejectedLate)
+        {
+            return IpcSessionOutcome.ProtocolViolation;
         }
         catch (IOException)
         {
@@ -237,7 +251,7 @@ public sealed class IpcServer(IpcServerOptions options, IpcDispatcher dispatcher
             }
         }
 
-        return IpcSessionOutcome.Cancelled;
+        return _rejectedLate ? IpcSessionOutcome.ProtocolViolation : IpcSessionOutcome.Cancelled;
     }
 
     /// <returns>False when the request was rejected before reaching a handler.</returns>
@@ -278,6 +292,16 @@ public sealed class IpcServer(IpcServerOptions options, IpcDispatcher dispatcher
             return false;
         }
 
+        if (work.IsFaulted && work.Exception?.InnerException is { } failure && options.IsRejection?.Invoke(failure) == true)
+        {
+            _inFlight.TryRemove(envelope.Id, out _);
+            requestCts.Dispose();
+            logger.LogWarning("Rejected IPC request {Type}.", envelope.Type);
+            var error = RejectionError(failure);
+            await SendErrorAsync(pipe, envelope.Id, error.Code, error.Message, error.Detail, cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+
         _ = CompleteRequestAsync(pipe, envelope, work, requestCts, cancellationToken);
         return true;
     }
@@ -296,6 +320,14 @@ public sealed class IpcServer(IpcServerOptions options, IpcDispatcher dispatcher
         catch (IpcPayloadException ex)
         {
             await TrySendErrorAsync(pipe, envelope.Id, IpcProtocol.ErrorCodes.MalformedPayload, ex.Message, sessionToken).ConfigureAwait(false);
+            await EndSessionIfStrictAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not IOException && options.IsRejection?.Invoke(ex) == true)
+        {
+            logger.LogWarning("Rejected IPC request {Type}.", envelope.Type);
+            var error = RejectionError(ex);
+            await TrySendErrorAsync(pipe, envelope.Id, error.Code, error.Message, sessionToken, error.Detail).ConfigureAwait(false);
+            await EndSessionIfStrictAsync().ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not IOException)
         {
@@ -316,6 +348,27 @@ public sealed class IpcServer(IpcServerOptions options, IpcDispatcher dispatcher
         {
             _inFlight.TryRemove(envelope.Id, out _);
             requestCts.Dispose();
+        }
+    }
+
+    private IpcError RejectionError(Exception failure)
+        => options.ErrorMapper?.Invoke(failure) ?? new IpcError(IpcProtocol.ErrorCodes.Unauthorized, "The request was rejected.", null);
+
+    /// <summary>A request rejected after the read loop moved on still ends a strict session.</summary>
+    private async Task EndSessionIfStrictAsync()
+    {
+        if (!options.DisconnectOnRejectedRequest || _session is not { } session)
+        {
+            return;
+        }
+
+        _rejectedLate = true;
+        try
+        {
+            await session.CancelAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
         }
     }
 

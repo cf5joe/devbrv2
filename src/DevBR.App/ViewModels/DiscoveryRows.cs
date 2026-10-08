@@ -5,11 +5,17 @@ using DevBR.Domain;
 
 namespace DevBR.App.ViewModels;
 
-public sealed record LabeledValue(string Label, string Value);
+public sealed record LabeledValue(string Label, string Value)
+{
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Label}: {Value}";
+}
 
 public sealed record CountChip(string Label, int Count)
 {
     public string Text => $"{Label} {Count.ToString("N0", CultureInfo.CurrentCulture)}";
+
+    public override string ToString() => Text;
 }
 
 /// <summary>One inventory record as shown in the list and details panel.</summary>
@@ -63,6 +69,9 @@ public sealed class InventoryRow(InventoryItem item, IReadOnlyList<MigrationArti
            || (Item.Version?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
            || (Item.Publisher?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
            || Item.Locations.Any(l => l.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Name}, {Version}, {Scope}, {Status}";
 }
 
 /// <summary>A selectable backup artifact. Selection changes are persisted through the catalog session.</summary>
@@ -105,6 +114,9 @@ public sealed partial class ArtifactRow : ObservableObject
         _ => null,
     };
 
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => string.Join(", ", new[] { Name, Kind, SensitivityLabel, EligibilityLabel }.Where(s => !string.IsNullOrEmpty(s)));
+
     public bool IsSensitive => Artifact.Sensitivity is Sensitivity.Credential or Sensitivity.ContainsRecognizedSecrets;
 
     public string? EligibilityLabel => Artifact.Eligibility switch
@@ -139,6 +151,9 @@ public sealed class ArtifactGroup(string owner, IReadOnlyList<ArtifactRow> rows)
     public string Owner { get; } = owner;
 
     public IReadOnlyList<ArtifactRow> Rows { get; } = rows;
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Owner}, {Formatting.Count(Rows.Count, "item", "items")}";
 }
 
 public sealed class CoverageRow(DiscoveryCoverage coverage)
@@ -172,6 +187,9 @@ public sealed class CoverageRow(DiscoveryCoverage coverage)
     public IReadOnlyList<string> Errors { get; } = coverage.Errors;
 
     public bool HasDetails => Excluded.Count + Inaccessible.Count + Errors.Count > 0;
+
+    // Lists without an item container announce ToString(); keep it a readable name, never a record dump.
+    public override string ToString() => $"{Source}: {Counts}";
 
     public string Summary => $"{Formatting.Count(Excluded.Count, "skipped scope", "skipped scopes")}, {Formatting.Count(Inaccessible.Count, "inaccessible location", "inaccessible locations")}{(Errors.Count > 0 ? $", {Formatting.Count(Errors.Count, "error", "errors")}" : string.Empty)}";
 }

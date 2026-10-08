@@ -37,7 +37,7 @@
             <DockPanel Margin="16,20,16,16">
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,0,0,24">
                     <Border Width="32" Height="32" CornerRadius="8" Background="{DynamicResource DevBR.Accent}">
-                        <TextBlock Text="&#xE8F7;" Style="{StaticResource Text.Icon}" FontSize="16"
+                        <controls:Glyph Text="&#xE8F7;" Style="{StaticResource Text.Icon}" FontSize="16"
                                    Foreground="{DynamicResource DevBR.AccentForeground}" HorizontalAlignment="Center" />
                     </Border>
                     <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
@@ -51,20 +51,20 @@
                             Background="{DynamicResource DevBR.AccentSubtle}" BorderBrush="{DynamicResource DevBR.Accent}" Margin="0,0,0,8"
                             ToolTip="{Binding MachineLabel}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE7EF;" Style="{StaticResource Text.Icon}" FontSize="11" Margin="0,0,6,0" />
+                            <controls:Glyph Text="&#xE7EF;" Style="{StaticResource Text.Icon}" FontSize="11" Margin="0,0,6,0" />
                             <TextBlock Text="Simulated machine" FontSize="12" />
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource Badge}" Visibility="{Binding IsDevelopmentBuild, Converter={StaticResource BoolToVisibility}}"
                             Background="{DynamicResource DevBR.WarningSubtle}" BorderBrush="{DynamicResource DevBR.Warning}" Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE7BA;" Style="{StaticResource Text.Icon}" FontSize="11" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,6,0" />
+                            <controls:Glyph Text="&#xE7BA;" Style="{StaticResource Text.Icon}" FontSize="11" Foreground="{DynamicResource DevBR.Warning}" Margin="0,0,6,0" />
                             <TextBlock Text="Development build" FontSize="12" />
                         </StackPanel>
                     </Border>
                     <TextBlock Text="{Binding BuildLabel}" Style="{StaticResource Text.Caption}" />
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <TextBlock Text="&#xEA18;" Style="{StaticResource Text.Icon}" FontSize="11" Foreground="{DynamicResource DevBR.TextMuted}" Margin="0,0,6,0" />
+                        <controls:Glyph Text="&#xEA18;" Style="{StaticResource Text.Icon}" FontSize="11" Foreground="{DynamicResource DevBR.TextMuted}" Margin="0,0,6,0" />
                         <TextBlock Text="{Binding ElevationLabel}" Style="{StaticResource Text.Caption}" />
                     </StackPanel>
                 </StackPanel>
@@ -75,7 +75,7 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:PageViewModel}">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding Glyph}" Style="{StaticResource Text.Icon}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
+                                <controls:Glyph Text="{Binding Glyph}" Style="{StaticResource Text.Icon}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
                                 <TextBlock Text="{Binding Title}" Margin="14,0,0,0" FontSize="14" VerticalAlignment="Center"
                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" />
                             </StackPanel>
@@ -102,7 +102,8 @@
                 </controls:InfoBar.ActionContent>
             </controls:InfoBar>
 
-            <ScrollViewer x:Name="PageScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+            <ScrollViewer x:Name="PageScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
+                          AutomationProperties.Name="{Binding SelectedPage.Title}">
                 <ContentControl x:Name="PageHost" Content="{Binding SelectedPage}" Margin="{StaticResource DevBR.PagePadding}"
                                 MaxWidth="{StaticResource DevBR.ContentMaxWidth}" HorizontalAlignment="Stretch" Focusable="False" IsTabStop="False">
                     <ContentControl.RenderTransform>

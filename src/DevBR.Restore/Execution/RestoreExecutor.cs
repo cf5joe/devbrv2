@@ -626,6 +626,11 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
         {
             var path = StagedPath(op);
             var verbatim = new FileContent(null, path, "sha256:" + op.Sha256!.ToLowerInvariant());
+            if (op.Verbatim)
+            {
+                return verbatim;
+            }
+
             var profile = MergeProfile.For(op.Operation.ArtifactId, Path.GetFileName(op.Operation.Target));
             if (profile is null || TargetProbe.ReadBoundedFile(path, MaxBufferedBytes) is not { } bytes
                 || JsonMerger.Parse(bytes) is not { } node || JsonMerger.RewritePaths(node, profile, _rewriter).Count == 0)

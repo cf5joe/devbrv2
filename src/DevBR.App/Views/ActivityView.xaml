@@ -4,20 +4,22 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:DevBR.App.ViewModels"
-             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:ActivityViewModel}">
+             xmlns:controls="clr-namespace:DevBR.App.Controls"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:ActivityViewModel}"
+             AutomationProperties.AutomationId="ActivityPage">
     <StackPanel>
         <TextBlock Text="ACTIVITY" Style="{StaticResource Text.Overline}" />
         <DockPanel Margin="0,6,0,0">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
                 <Button Style="{StaticResource Button.Secondary}" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh activity">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE72C;" Style="{StaticResource Text.Icon}" FontSize="13" Margin="0,0,8,0" />
+                        <controls:Glyph Text="&#xE72C;" Style="{StaticResource Text.Icon}" FontSize="13" Margin="0,0,8,0" />
                         <TextBlock Text="Refresh" />
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource Button.Secondary}" Command="{Binding OpenLogsFolderCommand}" Margin="8,0,0,0">
+                <Button Style="{StaticResource Button.Secondary}" Command="{Binding OpenLogsFolderCommand}" Margin="8,0,0,0" AutomationProperties.Name="Open logs folder">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#xE8B7;" Style="{StaticResource Text.Icon}" FontSize="13" Margin="0,0,8,0" />
+                        <controls:Glyph Text="&#xE8B7;" Style="{StaticResource Text.Icon}" FontSize="13" Margin="0,0,8,0" />
                         <TextBlock Text="Open logs folder" />
                     </StackPanel>
                 </Button>
@@ -39,7 +41,7 @@
                                     <ColumnDefinition Width="150" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="Icon" Text="{Binding Glyph}" Style="{StaticResource Text.Icon}" FontSize="14"
+                                <controls:Glyph x:Name="Icon" Text="{Binding Glyph}" Style="{StaticResource Text.Icon}" FontSize="14"
                                            Foreground="{DynamicResource DevBR.AccentText}" Margin="0,0,10,0" VerticalAlignment="Top" />
                                 <TextBlock Grid.Column="1" Text="{Binding SeverityLabel}" Style="{StaticResource Text.Caption}" Margin="0,2,0,0" />
                                 <StackPanel Grid.Column="2" Margin="0,0,16,0">

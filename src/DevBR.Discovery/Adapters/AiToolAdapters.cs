@@ -15,6 +15,13 @@ public sealed class CopilotAdapter : ToolAdapter
 
     public override string DisplayName => "GitHub Copilot CLI";
 
+    public override AdapterSupport Support => Declare(
+        "GitHub Copilot CLI",
+        [new("0.0.330", "2.0")],
+        [@"%COPILOT_HOME%", @"%XDG_CONFIG_HOME%\.copilot", @"%USERPROFILE%\.copilot"],
+        AdapterCapabilities.Capture | AdapterCapabilities.StructuredMerge | AdapterCapabilities.PathRewrite | AdapterCapabilities.DependencyRecipes,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.McpRuntimes, AdapterPrerequisites.SignInAgain);
+
     protected override string ToolId => "copilot-cli";
 
     protected override void Discover(AdapterScope s, CancellationToken cancellationToken)
@@ -53,6 +60,13 @@ public sealed class CodexAdapter : ToolAdapter
 
     public override string DisplayName => "Codex";
 
+    public override AdapterSupport Support => Declare(
+        "Codex CLI",
+        [new("0.40", "2.0")],
+        [@"%CODEX_HOME%", @"%USERPROFILE%\.codex"],
+        AdapterCapabilities.Capture,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.SignInAgain);
+
     protected override string ToolId => "codex";
 
     protected override void Discover(AdapterScope s, CancellationToken cancellationToken)
@@ -79,7 +93,7 @@ public sealed class CodexAdapter : ToolAdapter
         var key = root;
         s.Artifact("config", ArtifactKind.Settings, "config.toml", [configPath],
             mcp.Count == 0 ? "Model, sandbox and approval settings." : $"Settings and {AdapterScope.Count(mcp.Count, "MCP server", "MCP servers")}.",
-            Sensitivity.MayContainSecrets, capability: RestoreCapability.ExplicitFileRestore | RestoreCapability.StructuredMerge,
+            Sensitivity.MayContainSecrets,
             excluded: ["Sessions and archived sessions", "history.jsonl and logs", "Caches and the downloaded plugin cache (plugins are referenced in config.toml)"], customRootKey: key);
         s.Artifact("agents-md", ArtifactKind.Instructions, "AGENTS.md", s.Combine(root, "AGENTS.md"), "Global agent instructions.", customRootKey: key);
         s.Artifact("prompts", ArtifactKind.Instructions, "Custom prompts", s.Combine(root, "prompts"), "Reusable prompts.", customRootKey: key);
@@ -100,6 +114,13 @@ public sealed class ClaudeCodeAdapter : ToolAdapter
     public override string Id => "claude-code";
 
     public override string DisplayName => "Claude Code";
+
+    public override AdapterSupport Support => Declare(
+        "Claude Code",
+        [new("1.0", "3.0")],
+        [@"%CLAUDE_CONFIG_DIR%", @"%USERPROFILE%\.claude", @"%USERPROFILE%\.claude.json (mcpServers only)", @"%ProgramData%\ClaudeCode\managed-settings.json (inventory only)"],
+        AdapterCapabilities.Inventory | AdapterCapabilities.Capture | AdapterCapabilities.StructuredMerge | AdapterCapabilities.PathRewrite | AdapterCapabilities.DependencyRecipes,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.McpRuntimes, AdapterPrerequisites.SignInAgain, "Organization-managed settings are never overridden");
 
     protected override string ToolId => "claude-code";
 
@@ -172,6 +193,13 @@ public sealed class ClaudeDesktopAdapter : ToolAdapter
 
     public override string DisplayName => "Claude Desktop";
 
+    public override AdapterSupport Support => Declare(
+        "Claude Desktop",
+        [new("0.10", "2.0")],
+        [@"%APPDATA%\Claude", @"%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude"],
+        AdapterCapabilities.Inventory | AdapterCapabilities.Capture | AdapterCapabilities.StructuredMerge | AdapterCapabilities.PathRewrite | AdapterCapabilities.DependencyRecipes,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.HostClosed, AdapterPrerequisites.McpRuntimes, AdapterPrerequisites.SignInAgain);
+
     protected override string ToolId => "claude-desktop";
 
     protected override void Discover(AdapterScope s, CancellationToken cancellationToken)
@@ -212,6 +240,13 @@ public sealed class GeminiCliAdapter : ToolAdapter
     public override string Id => "gemini-cli";
 
     public override string DisplayName => "Gemini CLI";
+
+    public override AdapterSupport Support => Declare(
+        "Gemini CLI",
+        [new("0.5", "2.0")],
+        [@"%GEMINI_CLI_HOME%\.gemini", @"%USERPROFILE%\.gemini"],
+        AdapterCapabilities.Capture | AdapterCapabilities.StructuredMerge | AdapterCapabilities.PathRewrite | AdapterCapabilities.DependencyRecipes,
+        AdapterPrerequisites.HostInstalled, AdapterPrerequisites.McpRuntimes, AdapterPrerequisites.SignInAgain);
 
     protected override string ToolId => "gemini-cli";
 

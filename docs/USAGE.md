@@ -51,3 +51,7 @@ not need administrator rights still works, and the privileged steps are marked a
 
 Builds marked **Development build** in the sidebar are unsigned and intended for testing. Windows
 SmartScreen may warn before running them.
+
+For a step-by-step move to another PC see MIGRATION-GUIDE.md, and for problems (administrator approval,
+SmartScreen, locked files, passwords, disk space, interrupted restores, logs) see TROUBLESHOOTING.md. Both are
+in the DevBR folder next to this file.

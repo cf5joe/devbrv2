@@ -13,7 +13,8 @@ public sealed class SimulatedMachineBuilder
     private readonly Dictionary<string, Dictionary<string, Dictionary<string, RegistryValueDefinition>>> _registry = new(StringComparer.OrdinalIgnoreCase);
     private readonly MachineDefinition _definition;
 
-    public SimulatedMachineBuilder(string userName = "alice", string computerName = "SIM-WORKSTATION", bool elevated = false)
+    /// <param name="osBuild">The Windows build number; empty simulates a build that cannot be read.</param>
+    public SimulatedMachineBuilder(string userName = "alice", string computerName = "SIM-WORKSTATION", bool elevated = false, string osBuild = "26100")
     {
         _userName = userName;
         _computerName = computerName;
@@ -34,7 +35,7 @@ public sealed class SimulatedMachineBuilder
 
         _definition = new MachineDefinition
         {
-            Info = new MachineInfo(computerName, userName, "Windows 11 Pro", "24H2", "26100", "X64", elevated),
+            Info = new MachineInfo(computerName, userName, "Windows 11 Pro", "24H2", osBuild, "X64", elevated),
             Folders = Folders,
             Drives = [new DriveRecord(@"C:\", "System", "NTFS", 512L << 30, 200L << 30)],
         };
