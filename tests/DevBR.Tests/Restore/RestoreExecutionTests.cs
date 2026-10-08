@@ -282,6 +282,48 @@ public sealed class RestoreExecutionTests(RestoreFixture fixture) : IClassFixtur
         Assert.Null(h.Variable(RegistryHive.CurrentUser, "EDITOR"));
         Assert.Equal(JobStates.PartiallyRolledBack, h.Journal.GetJob(run.JobId)!.State);
     }
+    [Fact]
+    public async Task Cancelling_during_an_installation_settles_the_job_and_writes_a_report()
+    {
+        var h = new Harness(fixture, "cancel-install");
+        var request = h.Request();
+        var preflight = await fixture.Planner().PreflightAsync(request, null, Ct);
+        Assert.Contains(preflight.Effects, o => o.Operation.Action == RestoreAction.InstallDependency);
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var installer = new CancellingInstaller(cts);
+        var run = await h.Executor().ExecuteAsync(
+            new RestoreExecutionRequest(request, PlanApproval.Approve(preflight), h.Writer, h.Elevation(), installer, h.Reports), null, cts.Token);
+
+        Assert.Equal(RestoreRunOutcome.Cancelled, run.Outcome);
+        Assert.Equal(JobStates.Cancelled, h.Journal.GetJob(run.JobId)!.State);
+        Assert.Empty(h.Rollback().FindInterrupted());
+        Assert.True(File.Exists(run.ReportJsonPath));
+
+        // The installation that was running is reported as unconfirmed, not as "not started"; later ones never started.
+        var installs = run.Operations.Where(o => o.Action == RestoreAction.InstallDependency).ToList();
+        var interrupted = Assert.Single(installs, o => o.Detail?.Contains("could not confirm", StringComparison.Ordinal) == true);
+        Assert.Equal(RestoreStatus.Failed, interrupted.Status);
+        Assert.Equal(1, installer.Calls);
+        Assert.DoesNotContain(installs, o => o.Status == RestoreStatus.Applied);
+
+        // User-level changes made before cancelling were kept and verified.
+        Assert.Equal("code --wait", h.Variable(RegistryHive.CurrentUser, "EDITOR"));
+        Assert.Contains(run.Operations, o => o.Status == RestoreStatus.Applied && o.Verification != VerificationLevel.NotVerified);
+    }
+
+    /// <summary>Cancels the restore while the first installation is running.</summary>
+    private sealed class CancellingInstaller(CancellationTokenSource cts) : IPackageInstaller
+    {
+        public int Calls { get; private set; }
+
+        public Task<PackageInstallOutcome> InstallAsync(PackageInstallRequest request, CancellationToken cancellationToken)
+        {
+            Calls++;
+            cts.Cancel();
+            throw new OperationCanceledException(cancellationToken);
+        }
+    }
 
     // --- Recovery ---------------------------------------------------------------------------------
 

@@ -62,6 +62,11 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
         {
             await run.ExecuteAsync(cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Cancelled inside extraction, the administrator prompt or an installation: still settle the job and write its report.
+            run.Finish(cancelled: true);
+        }
         finally
         {
             run.CleanUp();
@@ -126,6 +131,7 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
         private List<(string Id, PlannedOperation Op, JournalIntent Intent)>? _committed;
         private int _done;
         private bool _environmentChanged;
+        private PlannedOperation? _inFlight;
 
         private RestoreRequest Request => execution.Request;
 
@@ -200,9 +206,22 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
                 await InstallAsync(op, cancellationToken).ConfigureAwait(false);
             }
 
-            foreach (var op in runnable.Where(o => !_results.ContainsKey(o.Operation.Id)))
+            Finish(cancellationToken.IsCancellationRequested);
+        }
+
+        /// <summary>Reports what did not run, announces environment changes and verifies what was applied.</summary>
+        public void Finish(bool cancelled)
+        {
+            if (_inFlight is { } interrupted && !_results.ContainsKey(interrupted.Operation.Id))
             {
-                Report(op, RestoreStatus.Skipped, "Not started because the restore was cancelled.", []);
+                Report(interrupted, RestoreStatus.Failed, "The restore was cancelled while this change was in progress, so DevBR could not confirm whether it was made.",
+                    ["Check this item yourself, or roll the restore back from Recent restores."]);
+            }
+
+            _inFlight = null;
+            foreach (var op in preflight.Operations.Where(o => o.Operation.Action != RestoreAction.Validate && !_results.ContainsKey(o.Operation.Id)))
+            {
+                Report(op, RestoreStatus.Skipped, cancelled ? "Not started because the restore was cancelled." : op.Detail ?? "Not started.", []);
             }
 
             if (_environmentChanged)
@@ -713,16 +732,19 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
                         }
 
                         owner.journal.RecordIntent(jobId, o.Id, ++_sequence, intent.ToJson());
+                        _inFlight = op;
                         try
                         {
                             await session.ApplyMachineEnvironmentAsync(jobId, preflight.Plan.ApprovalHash, [change], cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         {
+                            _inFlight = null;
                             owner.journal.RecordOutcome(jobId, o.Id, new JournalOutcome(Journal.Failed, ex.Message).ToJson());
                             throw;
                         }
 
+                        _inFlight = null;
                         owner.journal.RecordOutcome(jobId, o.Id, new JournalOutcome(Journal.Applied, null).ToJson());
                         _applied[o.Id] = intent;
                         _environmentChanged = true;
@@ -760,6 +782,7 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
                 new JournalIntent("install", o.ArtifactId, op.Title, recipe.Preview, o.Privilege.ToString(), null, null, null, false, false, false).ToJson());
 
             PackageInstallOutcome outcome;
+            _inFlight = op;
             try
             {
                 outcome = await execution.Installer.InstallAsync(install, cancellationToken).ConfigureAwait(false);
@@ -769,6 +792,7 @@ public sealed class RestoreExecutor(RestorePlanner planner, IArchiveService arch
                 outcome = new PackageInstallOutcome(false, -1, ex.Message);
             }
 
+            _inFlight = null;
             owner.journal.RecordOutcome(jobId, o.Id, new JournalOutcome(outcome.Succeeded ? Journal.Applied : Journal.Failed, $"exit code {outcome.ExitCode}").ToJson());
             if (outcome.Succeeded)
             {

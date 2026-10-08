@@ -240,6 +240,12 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
                 ShowPreflight(run.Preflight);
             }
         }
+        catch (OperationCanceledException)
+        {
+            RunSeverity = InfoSeverity.Warning;
+            RunTitle = "Restore cancelled";
+            RunMessage = "The restore was cancelled before it changed anything.";
+        }
         catch (Exception ex) when (ex is ArchiveException or BackupFormatException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             RunSeverity = InfoSeverity.Error;
