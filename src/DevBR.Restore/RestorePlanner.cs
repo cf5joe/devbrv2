@@ -8,6 +8,7 @@ using DevBR.Application.Machine;
 using DevBR.Application.Restore;
 using DevBR.Backup;
 using DevBR.Discovery;
+using DevBR.Discovery.Adapters;
 using DevBR.Discovery.Catalog;
 using DevBR.Discovery.Providers;
 using DevBR.Discovery.Support;
@@ -307,6 +308,85 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
         }
     }
 
+    // --- Verified versions ------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Whether the artifact's adapter may merge or rewrite it. That needs a verified host version: the one
+    /// installed here (or, before it is installed, the one the backup came from); a version recorded on the
+    /// old computer must be verified too. Otherwise the artifact falls back to whole-file handling (or
+    /// inventory for the environment) and one finding per tool explains why.
+    /// </summary>
+    private static bool SemanticHandlingAllowed(MigrationArtifact artifact, PlanContext context)
+    {
+        if (DiscoveryEngine.DefaultAdapters.FirstOrDefault(a => a.Support.HostToolId == artifact.OwnerToolId) is not { Support.HasSemanticHandling: true } adapter)
+        {
+            return true;
+        }
+
+        var support = adapter.Support;
+        if (!context.SemanticGates.TryGetValue(support.HostToolId, out var problem))
+        {
+            problem = context.SemanticGates[support.HostToolId] = UnverifiedVersionProblem(support, context);
+        }
+
+        if (problem is null)
+        {
+            return true;
+        }
+
+        var windows = support.HostToolId == "windows";
+        context.Finding(FindingSeverity.Warning, [artifact.Id], support.HostName, problem,
+            windows
+                ? "DevBR changes environment variables and PATH only on Windows versions it has verified, so they are listed for reference instead."
+                : $"DevBR merges settings and rewrites paths only for versions whose file formats it has verified ({support.VersionText}). These items are restored as whole files instead: this computer's files are kept unless you choose to replace them or restore the backup's copy alongside, and files are written exactly as captured.",
+            windows
+                ? ["Set the variables you need yourself after restoring."]
+                : [$"Install a verified version of {support.HostName} ({support.VersionText}), then choose Recheck.", "Or continue, and choose Replace or Restore alongside for the files you want from the backup."],
+            prerequisiteKey: $"unverified-version:{support.HostToolId}");
+        return false;
+    }
+
+    private static string? UnverifiedVersionProblem(AdapterSupport support, PlanContext context)
+    {
+        var hostCategories = new[] { InventoryCategory.DeveloperTool, InventoryCategory.Runtime, InventoryCategory.PackageManager, InventoryCategory.Application };
+        string? sourceVersion;
+        string? targetVersion;
+        bool installed;
+        if (support.HostToolId == "windows")
+        {
+            sourceVersion = context.SourceInventory.FirstOrDefault(i => i.Category == InventoryCategory.SystemFact && i.Properties?.ContainsKey("architecture") == true)?.Version;
+            targetVersion = context.Request.Target.Info.OsBuild;
+            installed = true;
+        }
+        else
+        {
+            sourceVersion = context.SourceInventory.FirstOrDefault(i => i.ToolId == support.HostToolId && hostCategories.Contains(i.Category) && i.Version is not null)?.Version;
+            installed = context.Installed.TryGetValue(support.HostToolId, out var installs);
+            targetVersion = installs?.Select(i => i.Version).FirstOrDefault(v => v is not null);
+        }
+
+        var name = support.HostName;
+        var outcome = support.HostToolId == "windows" ? "environment variables and PATH will be listed, not changed" : "its settings will be restored as whole files, not merged";
+        if (installed && support.Evaluate(targetVersion) == VersionSupport.Unsupported)
+        {
+            return $"{name} {targetVersion} on this computer is not a version DevBR has verified ({support.VersionText}); {outcome}.";
+        }
+
+        if (sourceVersion is not null && support.Evaluate(sourceVersion) == VersionSupport.Unsupported)
+        {
+            return $"The backup's settings come from {name} {sourceVersion}, which is not a version DevBR has verified ({support.VersionText}); {outcome}.";
+        }
+
+        if (installed && support.Evaluate(targetVersion) == VersionSupport.Unknown)
+        {
+            return $"DevBR could not determine which version of {name} is on this computer; {outcome}.";
+        }
+
+        return !installed && support.Evaluate(sourceVersion) == VersionSupport.Unknown
+            ? $"DevBR could not determine which version of {name} the backup's settings come from; {outcome}."
+            : null;
+    }
+
     public static int CompareVersions(string a, string b)
     {
         static long[] Parts(string v) => [.. DiscoveryEngine.NormalizeVersion(v).Split('.').Select(p => long.TryParse(new string([.. p.TakeWhile(char.IsDigit)]), out var n) ? n : 0)];
@@ -359,6 +439,22 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
         }
 
         var variables = JsonSerializer.Deserialize<List<CapturedVariable>>(bytes, BackupRunner.IndexJson) ?? [];
+
+        // Environment and PATH merges are semantic edits: on an unverified Windows build they become inventory only.
+        if (!SemanticHandlingAllowed(record.Artifact, context))
+        {
+            var names = variables.Where(v => !SystemDefinedVariables.Contains(v.Name)).Select(v => $"{v.Name} ({v.Scope.ToLowerInvariant()})").ToList();
+            if (names.Count > 0)
+            {
+                context.Finding(FindingSeverity.Information, [record.Artifact.Id], null,
+                    $"{record.Artifact.DisplayName} are listed for reference only: {string.Join(", ", names.Take(6))}{(names.Count > 6 ? "…" : string.Empty)}.",
+                    "No variables or PATH entries are changed on an unverified Windows version.",
+                    ["Set the variables you need yourself, or restore onto a verified Windows version."], canRecheck: false);
+            }
+
+            return;
+        }
+
         var target = context.Request.Target;
         var disabled = new List<string>();
         var unresolved = new List<string>();
@@ -646,6 +742,14 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
 
             var fileName = Path.GetFileName(destination);
             var profile = MergeProfile.For(record.Artifact.Id, fileName);
+
+            // Merges and path rewrites only for verified host versions; otherwise the file is handled whole and written as captured.
+            var verbatim = profile is not null && !SemanticHandlingAllowed(record.Artifact, context);
+            if (verbatim)
+            {
+                profile = null;
+            }
+
             context.Contents.TryGetValue(entry.ArchivePath, out var content);
             var backupNode = profile is not null && content is not null ? JsonMerger.Parse(content) : null;
 
@@ -667,7 +771,8 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
                 context.Add(new PlannedOperation(
                     new RestoreOperation(opId, record.Artifact.Id, dependsOn, destination, RestoreAction.CreateFile, ConflictDecision.NoConflict, PrivilegeRequirement.User,
                         Reversibility.RollbackCapable, "absent"),
-                    $"Create {destination}", Size(entry.Size), entry.ArchivePath, entry.Sha256, entry.Size, null, null, !blockedArtifact, []));
+                    $"Create {destination}", verbatim ? $"{Size(entry.Size)} · copied as captured (no merge or path rewrite)" : Size(entry.Size), entry.ArchivePath, entry.Sha256, entry.Size, null, null, !blockedArtifact, [],
+                    Verbatim: verbatim));
                 continue;
             }
 
@@ -725,7 +830,7 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
                     new RestoreOperation(opId, record.Artifact.Id, dependsOn, where, action, decision == ConflictDecision.Merge ? ConflictDecision.KeepExisting : decision,
                         PrivilegeRequirement.User, Reversibility.RollbackCapable, expected),
                     title, action == RestoreAction.Skip ? "This computer's file differs and is kept." : action == RestoreAction.RestoreAlongside ? $"Saved as {Path.GetFileName(where)}" : "The current file is kept for rollback.",
-                    entry.ArchivePath, entry.Sha256, entry.Size, null, null, !blockedArtifact, allowed));
+                    entry.ArchivePath, entry.Sha256, entry.Size, null, null, !blockedArtifact, allowed, Verbatim: verbatim));
             }
         }
 
@@ -1076,6 +1181,9 @@ public sealed class RestorePlanner(IArchiveService archive, ILogger<RestorePlann
         public HashSet<string> HostSteps { get; } = new(StringComparer.Ordinal);
 
         public HashSet<string> VersionWarned { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>Per host tool: why semantic handling is off (null when its version is verified).</summary>
+        public Dictionary<string, string?> SemanticGates { get; } = new(StringComparer.Ordinal);
 
         public bool GitWarned { get; set; }
 
