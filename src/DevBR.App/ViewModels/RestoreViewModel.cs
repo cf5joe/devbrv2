@@ -233,13 +233,22 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
         {
             var (writer, elevation, installer) = Tools();
             var request = BuildRequest();
-            var progress = new Progress<RestoreProgress>(p =>
+            RestoreRun run;
+            using (var progress = new ThrottledProgress<RestoreProgress>(p =>
             {
+                if (cts.IsCancellationRequested)
+                {
+                    return; // keep the cancellation acknowledgement visible
+                }
+
                 RestoreStatus = p.Total == 0 ? p.Message : $"{p.Message} ({p.Done:N0} of {p.Total:N0})";
                 RestorePercent = p.Total == 0 ? 0 : 100.0 * p.Done / p.Total;
-            });
-            var run = await Task.Run(() => executor.ExecuteAsync(new RestoreExecutionRequest(request, approval, writer, elevation, installer, paths.ReportsDirectory),
-                progress, cts.Token), CancellationToken.None);
+            }))
+            {
+                run = await Task.Run(() => executor.ExecuteAsync(new RestoreExecutionRequest(request, approval, writer, elevation, installer, paths.ReportsDirectory),
+                    progress, cts.Token), CancellationToken.None);
+            }
+
             ShowRun(run);
             await activity.AddAsync(run.Outcome == RestoreRunOutcome.Completed ? EventSeverity.Information : EventSeverity.Warning, "Restore",
                 $"Restore of {FileName} to {machine.Label}: {run.Message} {run.Count(Domain.RestoreStatus.Applied)} restored, {run.Count(Domain.RestoreStatus.Failed)} failed, {run.Count(Domain.RestoreStatus.Blocked)} blocked.",
@@ -275,7 +284,14 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
     private bool CanRestore() => _approval is not null && Preflight is not null && !IsPreflighting && !IsRestoring;
 
     [RelayCommand]
-    private void CancelRestore() => _restoreCts?.Cancel();
+    private void CancelRestore()
+    {
+        if (_restoreCts is { IsCancellationRequested: false } cts)
+        {
+            RestoreStatus = "Cancelling — stopping at the next safe point…";
+            cts.Cancel();
+        }
+    }
 
     [RelayCommand]
     private void OpenReport(string? path)
@@ -421,7 +437,10 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
 
         try
         {
-            var result = await planner.PreflightAsync(BuildRequest(), new Progress<string>(s => PreflightStatus = s), cts.Token);
+            // Preflight reads and hashes target files: run it off the UI thread.
+            var request = BuildRequest();
+            var status = new Progress<string>(s => PreflightStatus = s);
+            var result = await Task.Run(() => planner.PreflightAsync(request, status, cts.Token), CancellationToken.None);
             ShowPreflight(result);
             PreflightStatus = null;
         }
@@ -676,7 +695,8 @@ public sealed partial class RestoreViewModel(IArchiveService archive, IDialogSer
         {
             var scratch = settings.Current.ScratchDirectory ?? paths.DefaultScratchDirectory;
             Directory.CreateDirectory(scratch);
-            var overview = await new BackupReader(archive).OpenAsync(FilePath, password, scratch, cts.Token);
+            var file = FilePath;
+            var overview = await Task.Run(() => new BackupReader(archive).OpenAsync(file, password, scratch, cts.Token), CancellationToken.None);
 
             _password = password;
             PasswordError = null;

@@ -211,11 +211,16 @@ public sealed partial class DiscoveryViewModel : PageViewModel
 
         var excluded = new List<string> { _paths.Root };
         var options = new DiscoveryOptions(ScanFixedDrives, [.. ExtraRoots], excluded, IncludeOtherUserProfiles);
-        var progress = new Progress<DiscoveryProgress>(OnProgress);
+        var progress = new ThrottledProgress<DiscoveryProgress>(OnProgress);
 
         try
         {
-            var snapshot = await _engine.RunAsync(_machine.Current, options, progress, _scan.Token);
+            DiscoverySnapshot snapshot;
+            using (progress)
+            {
+                snapshot = await _engine.RunAsync(_machine.Current, options, progress, _scan.Token);
+            }
+
             await _session.SetSnapshotAsync(snapshot, CancellationToken.None);
             Tab = DiscoveryTab.Inventory;
             await _activity.AddAsync(snapshot.Cancelled ? EventSeverity.Warning : EventSeverity.Information, "Discovery",
@@ -299,7 +304,7 @@ public sealed partial class DiscoveryViewModel : PageViewModel
             return;
         }
 
-        ScanStatus = $"{progress.ProvidersCompleted} of {progress.ProvidersTotal} sources done · {Formatting.Count(progress.FilesScanned, "entry", "entries")} scanned · {progress.Elapsed:mm\\:ss}";
+        ScanStatus = $"{progress.ProvidersCompleted} of {progress.ProvidersTotal} sources done · {Formatting.Count(progress.FilesScanned, "entry", "entries")} scanned · {Formatting.Elapsed(progress.Elapsed)}";
         CurrentScope = progress.CurrentScope;
         Replace(LiveCategories, progress.ByCategory.OrderByDescending(c => c.Value).Select(c => new CountChip(DiscoveryText.Category(c.Key), c.Value)));
         Replace(LiveDrives, progress.ByDrive.OrderBy(d => d.Key, StringComparer.OrdinalIgnoreCase).Select(d => new CountChip(d.Key, d.Value)));
