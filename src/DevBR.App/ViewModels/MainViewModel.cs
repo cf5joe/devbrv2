@@ -4,10 +4,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DevBR.App.Controls;
 using DevBR.App.Services;
+using DevBR.Application.Restore;
 using DevBR.Domain;
 using DevBR.Infrastructure;
 using DevBR.Infrastructure.State;
 using DevBR.Infrastructure.Workers;
+using DevBR.Restore.Execution;
 
 namespace DevBR.App.ViewModels;
 
@@ -15,12 +17,15 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private readonly ActivityStore _activity;
     private readonly MachineContext _machine;
+    private readonly RestoreRollbackService _rollbacks;
+    private readonly Navigator _navigator;
 
     public MainViewModel(
         Navigator navigator,
         WorkerProcessHost workerHost,
         ActivityStore activity,
         MachineContext machine,
+        RestoreRollbackService rollbacks,
         OverviewViewModel overview,
         DiscoveryViewModel discovery,
         BackupViewModel backup,
@@ -30,6 +35,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _activity = activity;
         _machine = machine;
+        _rollbacks = rollbacks;
+        _navigator = navigator;
         _machine.Changed += (_, _) => { OnPropertyChanged(nameof(IsSimulated)); OnPropertyChanged(nameof(MachineLabel)); };
         Pages = [overview, discovery, backup, restore, activityPage, settings];
         SelectedPage = overview;
@@ -55,6 +62,9 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial InfoSeverity BannerSeverity { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsReviewRestoreVisible { get; set; }
+
     public string BuildLabel => $"Version {BuildInfo.Version}";
 
     public bool IsDevelopmentBuild => BuildInfo.IsDevelopmentBuild;
@@ -79,6 +89,34 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void DismissBanner() => IsBannerVisible = false;
 
+    /// <summary>
+    /// Called once at startup: a restore left running by a crash or power loss is announced right away
+    /// (reading only DevBR's own journal). Opening Restore then checks its unfinished changes; nothing is redone.
+    /// </summary>
+    public void CheckForInterruptedRestores()
+    {
+        var count = _rollbacks.FindInterrupted().Count(j =>
+            string.Equals(RestoreJobSummary.FromJson(j.Summary)?.MachineName, _machine.Current.Info.ComputerName, StringComparison.OrdinalIgnoreCase));
+        if (count == 0)
+        {
+            return;
+        }
+
+        BannerSeverity = InfoSeverity.Warning;
+        BannerTitle = count == 1 ? "A restore was interrupted" : $"{count} restores were interrupted";
+        BannerMessage = "DevBR closed before it finished restoring. Review it to see which changes were made, then roll it back or plan the restore again. Nothing is redone automatically.";
+        IsReviewRestoreVisible = true;
+        IsBannerVisible = true;
+    }
+
+    [RelayCommand]
+    private void ReviewInterruptedRestore()
+    {
+        IsBannerVisible = false;
+        IsReviewRestoreVisible = false;
+        _navigator.NavigateTo<RestoreViewModel>();
+    }
+
     private void OnWorkerFaulted(object? sender, WorkerFaultedEventArgs e)
     {
         System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
@@ -86,6 +124,7 @@ public sealed partial class MainViewModel : ObservableObject
             BannerSeverity = InfoSeverity.Error;
             BannerTitle = "Background archive process stopped";
             BannerMessage = e.Message;
+            IsReviewRestoreVisible = false;
             IsBannerVisible = true;
         });
 

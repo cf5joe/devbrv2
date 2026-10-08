@@ -94,7 +94,13 @@
 
             <controls:InfoBar Margin="40,20,40,0" Severity="{Binding BannerSeverity}" Title="{Binding BannerTitle}" Message="{Binding BannerMessage}"
                               CloseCommand="{Binding DismissBannerCommand}" MaxWidth="{StaticResource DevBR.ContentMaxWidth}" HorizontalAlignment="Stretch"
-                              Visibility="{Binding IsBannerVisible, Converter={StaticResource BoolToVisibility}}" />
+                              Visibility="{Binding IsBannerVisible, Converter={StaticResource BoolToVisibility}}">
+                <controls:InfoBar.ActionContent>
+                    <Button Style="{StaticResource Button.Secondary}" Content="Review" Command="{Binding ReviewInterruptedRestoreCommand}"
+                            AutomationProperties.Name="Review the interrupted restore"
+                            Visibility="{Binding IsReviewRestoreVisible, Converter={StaticResource BoolToVisibility}}" />
+                </controls:InfoBar.ActionContent>
+            </controls:InfoBar>
 
             <ScrollViewer x:Name="PageScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                 <ContentControl x:Name="PageHost" Content="{Binding SelectedPage}" Margin="{StaticResource DevBR.PagePadding}"

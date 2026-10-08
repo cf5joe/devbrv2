@@ -58,6 +58,7 @@ public partial class App
             var window = _host.Services.GetRequiredService<MainWindow>();
             MainWindow = window;
             window.Show();
+            _host.Services.GetRequiredService<MainViewModel>().CheckForInterruptedRestores();
             await OpenBackupFromCommandLineAsync(e.Args, _host.Services);
 
             Log.Information("DevBR {Version} ({Channel}) started.", BuildInfo.Version, BuildInfo.ReleaseChannel);
