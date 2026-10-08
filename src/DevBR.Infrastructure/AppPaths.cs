@@ -6,9 +6,21 @@ namespace DevBR.Infrastructure;
 /// </summary>
 public sealed class AppPaths
 {
+    /// <summary>
+    /// Development builds only: redirects all application state (used by UI automation tests so they
+    /// never touch the real %LOCALAPPDATA%\DevBR). Release builds ignore it.
+    /// </summary>
+    public const string DataRootVariable = "DEVBR_DATA_ROOT";
+
     public AppPaths(string? root = null)
     {
-        Root = root ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DevBR");
+        Root = root ?? DevelopmentOverride() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DevBR");
+    }
+
+    private static string? DevelopmentOverride()
+    {
+        var value = BuildInfo.IsDevelopmentBuild ? Environment.GetEnvironmentVariable(DataRootVariable) : null;
+        return string.IsNullOrWhiteSpace(value) ? null : Path.GetFullPath(value);
     }
 
     public string Root { get; }
