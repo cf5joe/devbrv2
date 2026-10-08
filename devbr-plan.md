@@ -1,7 +1,7 @@
 # DevBR — Windows Developer Backup and Restore Blueprint
 
 **Target document:** `C:\code\Projects\DevBR\devbr-plan.md`  
-**Status:** Planning complete. Saved for implementation; implementation has not started.
+**Status:** Phases 1–5 implemented (see README and git history). Phase 6 (hardening, performance, release) in progress.
 
 ## 1. Product definition and confirmed decisions
 
