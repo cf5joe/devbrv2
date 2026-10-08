@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DevBR.Bench</RootNamespace>
+    <AssemblyName>DevBR.Bench</AssemblyName>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DevBR.Archive\DevBR.Archive.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.ArchiveWorker\DevBR.ArchiveWorker.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Backup\DevBR.Backup.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Infrastructure\DevBR.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Restore\DevBR.Restore.csproj" />
+    <ProjectReference Include="..\..\src\DevBR.Simulation\DevBR.Simulation.csproj" />
+  </ItemGroup>
+</Project>
